@@ -20,6 +20,10 @@
     border: none; border-radius: 8px; background: #dbe7f5; color: #336; font-size: 15px; }
   .score { text-align: center; font-size: 17px; margin: 8px 0; color: #336; }
   .clef-label { text-align: center; font-size: 14px; color: #556; margin-bottom: 4px; }
+  .toggle-mode { text-align: center; margin-bottom: 10px; }
+  .toggle-mode button { padding: 6px 12px; font-size: 13px; border: none;
+    border-radius: 6px; background: #e0e0e0; color: #333; }
+  .toggle-mode button.active { background: #4a90d9; color: #fff; }
 
   .staff { position: relative; height: 150px; max-width: 340px; margin: 10px auto;
     background: #fff; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.08); }
@@ -45,7 +49,6 @@
     border-radius: 0 0 8px 8px; font-size: 14px; color: #333; }
   #keys button:active { background: #ffd54f; }
 
-  /* клавиши-пианино в один ряд */
   #piano { display: flex; justify-content: center; gap: 4px; max-width: 400px; margin: 10px auto; }
   #piano button { width: 13%; height: 90px; border: 1px solid #99a; border-radius: 0 0 6px 6px;
     background: #fff; font-size: 12px; color: #333; }
@@ -67,6 +70,10 @@
 
 <div id="guess" class="screen">
   <button class="back" onclick="showScreen('menu')">← Меню</button>
+  <div class="toggle-mode">
+    <button id="btnCam" class="active" onclick="toggleCam(true)">Камертон</button>
+    <button id="btnStr" onclick="toggleCam(false)">Струна</button>
+  </div>
   <div class="clef-label">Скрипичный ключ: 2-я линия снизу — Соль</div>
   <div class="staff">
     <div class="line" style="top:6px"></div>
@@ -85,6 +92,10 @@
 
 <div id="fall" class="screen">
   <button class="back" onclick="showScreen('menu')">← Меню</button>
+  <div class="toggle-mode">
+    <button id="btnCamF" class="active" onclick="toggleCam(true)">Камертон</button>
+    <button id="btnStrF" onclick="toggleCam(false)">Струна</button>
+  </div>
   <div class="score">Очки: <span id="fScore">0</span> · Промахи: <span id="fMiss">0</span></div>
   <div id="fallArea"></div>
   <div id="keys"></div>
@@ -92,6 +103,10 @@
 
 <div id="tree" class="screen">
   <button class="back" onclick="showScreen('menu')">← Меню</button>
+  <div class="toggle-mode">
+    <button id="btnCamT" class="active" onclick="toggleCam(true)">Камертон</button>
+    <button id="btnStrT" onclick="toggleCam(false)">Струна</button>
+  </div>
   <div class="score">Уровень: <span id="tLevel">1</span></div>
   <div id="piano"></div>
   <div class="msg" id="tMsg">Слушай и повторяй!</div>
@@ -101,46 +116,72 @@
 const NOTES = ['До','Ре','Ми','Фа','Соль','Ля','Си'];
 const COLORS = ['#e53935','#fb8c00','#fdd835','#43a047','#1e88e5','#8e24aa','#5d4037'];
 const NOTE_Y = [127, 115, 103, 91, 79, 67, 55];
-
-/* Частоты первой октавы, Гц */
 const FREQ = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88];
 
-/* --- Звук: «молоточковый» тембр из нескольких гармоник --- */
+// Мелодии для падающих нот (индексы нот)
+const MELODIES = [
+  [4, 4, 4, 2, 5, 5, 4, 2, 4, 4, 4, 2, 5, 5, 4], // В лесу родилась ёлочка
+  [0, 2, 0, 2, 0, 2, 2, 2, 0, 2, 0, 2, 0, 2, 2], // Жили у бабуси
+  [3, 4, 5, 5, 3, 4, 5, 5, 3, 4, 5, 5, 3, 4, 5]  // Пусть бегут неуклюже
+];
+
 let audioCtx = null;
+let useCamerton = true; // по умолчанию камертон
+
+function toggleCam(isCam) {
+  useCamerton = isCam;
+  document.querySelectorAll('.toggle-mode button').forEach(b => b.classList.remove('active'));
+  const btn = isCam ? document.getElementById('btnCam') || document.getElementById('btnCamF') || document.getElementById('btnCamT')
+                    : document.getElementById('btnStr') || document.getElementById('btnStrF') || document.getElementById('btnStrT');
+  if (btn) btn.classList.add('active');
+}
+
 function playNote(i) {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
     const t = audioCtx.currentTime;
     const f = FREQ[i];
-    // Гармоники как у струны: 1x, 2x, 3x, 4x — с падающей громкостью.
-    // Короткая атака и долгое затухание дают ощущение удара молоточка.
-    const harmonics = [
-      { mult: 1,    gain: 0.30, decay: 1.4 },
-      { mult: 2,    gain: 0.14, decay: 0.9 },
-      { mult: 3,    gain: 0.07, decay: 0.6 },
-      { mult: 4.02, gain: 0.04, decay: 0.4 }  // чуть расстроена — теплее
-    ];
-    harmonics.forEach(h => {
+
+    if (useCamerton) {
+      // Чистый камертон (синус)
       const o = audioCtx.createOscillator();
       const g = audioCtx.createGain();
       o.type = 'sine';
-      o.frequency.value = f * h.mult;
+      o.frequency.value = f;
       g.gain.setValueAtTime(0.001, t);
-      g.gain.linearRampToValueAtTime(h.gain, t + 0.008);
-      g.gain.exponentialRampToValueAtTime(0.001, t + h.decay);
+      g.gain.linearRampToValueAtTime(0.3, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
       o.connect(g); g.connect(audioCtx.destination);
-      o.start(t); o.stop(t + h.decay + 0.05);
-    });
-    // короткий «щелчок» удара — имитация молоточка
-    const oN = audioCtx.createOscillator();
-    const gN = audioCtx.createGain();
-    oN.type = 'triangle';
-    oN.frequency.value = f * 6;
-    gN.gain.setValueAtTime(0.10, t);
-    gN.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-    oN.connect(gN); gN.connect(audioCtx.destination);
-    oN.start(t); oN.stop(t + 0.08);
+      o.start(t); o.stop(t + 0.8);
+    } else {
+      // Струнный тембр (гармоники + удар)
+      const harmonics = [
+        { mult: 1,    gain: 0.30, decay: 1.4 },
+        { mult: 2,    gain: 0.14, decay: 0.9 },
+        { mult: 3,    gain: 0.07, decay: 0.6 },
+        { mult: 4.02, gain: 0.04, decay: 0.4 }
+      ];
+      harmonics.forEach(h => {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = 'sine';
+        o.frequency.value = f * h.mult;
+        g.gain.setValueAtTime(0.001, t);
+        g.gain.linearRampToValueAtTime(h.gain, t + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.001, t + h.decay);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(t); o.stop(t + h.decay + 0.05);
+      });
+      const oN = audioCtx.createOscillator();
+      const gN = audioCtx.createGain();
+      oN.type = 'triangle';
+      oN.frequency.value = f * 6;
+      gN.gain.setValueAtTime(0.10, t);
+      gN.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+      oN.connect(gN); gN.connect(audioCtx.destination);
+      oN.start(t); oN.stop(t + 0.08);
+    }
   } catch (e) {}
 }
 
@@ -185,22 +226,24 @@ function newGuess() {
   });
 }
 
-/* --- Падающие ноты: звук только при верном нажатии --- */
-let fallTimer = null, spawnTimer = null, fScore = 0, fMiss = 0;
+/* --- Падающие ноты: мелодии, цвет клавиш = цвету ноты --- */
+let fallTimer = null, spawnTimer = null, fScore = 0, fMiss = 0, melodyIdx = 0, notePos = 0;
 function startFall() {
   const keys = document.getElementById('keys');
   keys.innerHTML = '';
   NOTES.forEach((n, i) => {
     const b = document.createElement('button');
     b.textContent = n;
+    b.style.borderTop = '4px solid ' + COLORS[i];
     b.onclick = () => tapKey(i);
     keys.appendChild(b);
   });
-  fScore = 0; fMiss = 0;
+  fScore = 0; fMiss = 0; notePos = 0;
+  melodyIdx = Math.floor(Math.random() * MELODIES.length);
   document.getElementById('fScore').textContent = 0;
   document.getElementById('fMiss').textContent = 0;
   document.getElementById('fallArea').innerHTML = '';
-  spawnTimer = setInterval(spawnNote, 1300);
+  spawnTimer = setInterval(spawnNote, 400); // ритм мелодии
   fallTimer = setInterval(moveNotes, 30);
 }
 function stopFall() {
@@ -210,7 +253,8 @@ function stopFall() {
 function spawnNote() {
   const area = document.getElementById('fallArea');
   if (area.children.length > 6) return;
-  const n = Math.floor(Math.random() * 7);
+  const n = MELODIES[melodyIdx][notePos % MELODIES[melodyIdx].length];
+  notePos++;
   const d = document.createElement('div');
   d.className = 'fall-note';
   d.textContent = NOTES[n];
@@ -239,7 +283,7 @@ function tapKey(i) {
     }
   });
   if (target) {
-    playNote(i);               // звук только за пойманную ноту
+    playNote(i);
     target.remove();
     fScore++;
     document.getElementById('fScore').textContent = fScore;
@@ -248,9 +292,9 @@ function tapKey(i) {
 }
 
 /* --- Ёлочка: клавиши в ряд, как на пианино --- */
-let tSeq = [], tStep = 0, tLevel = 1, tPlaying = false;
+let tSeq = , tStep = 0, tLevel = 1, tPlaying = false;
 function startTree() {
-  tLevel = 1; tSeq = []; tStep = 0;
+  tLevel = 1; tSeq = ; tStep = 0;
   document.getElementById('tLevel').textContent = 1;
   buildPiano();
   setTimeout(playSeq, 600);
@@ -261,7 +305,7 @@ function buildPiano() {
   NOTES.forEach((n, i) => {
     const b = document.createElement('button');
     b.textContent = n;
-    b.style.borderTop = '4px solid ' + COLORS[i];   // цветная полоска для запоминания
+    b.style.borderTop = '4px solid ' + COLORS[i];
     b.onclick = () => tapTree(i);
     box.appendChild(b);
   });
@@ -281,7 +325,6 @@ function playSeq() {
 }
 function flash(i) {
   const btns = document.querySelectorAll('#piano button');
-  btns[i].classList.add('lit') || null;
   btns[i].style.background = '#ffd54f';
   setTimeout(() => { btns[i].style.background = '#fff'; }, 350);
 }
@@ -299,7 +342,7 @@ function tapTree(i) {
     }
   } else {
     document.getElementById('tMsg').textContent = 'Почти! Начнём заново.';
-    setTimeout(() => { tSeq = []; tStep = 0; playSeq(); }, 900);
+    setTimeout(() => { tSeq = ; tStep = 0; playSeq(); }, 900);
   }
 }
 </script>
