@@ -1,85 +1,352 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Музыкальная улитка</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: sans-serif; background: #f0f4fa; min-height: 100vh; }
-  header { background: #4a90d9; color: #fff; padding: 14px; text-align: center; }
-  header h1 { font-size: 24px; margin-bottom: 8px; }
-  #progress { height: 10px; background: #9cc3ec; border-radius: 5px; }
-  #bar { height: 100%; width: 0%; background: #ffd54f; border-radius: 5px; transition: width .3s; }
-  .screen { display: none; padding: 16px; }
-  .screen.active { display: block; }
-  button.menu-btn { display: block; width: 100%; max-width: 340px; margin: 10px auto;
-    padding: 14px; font-size: 18px; border: none; border-radius: 12px;
-    background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.12); color: #333; }
-  .back { display: inline-block; margin-bottom: 10px; padding: 8px 16px;
-    border: none; border-radius: 8px; background: #dbe7f5; color: #336; font-size: 15px; }
-  .score { text-align: center; font-size: 17px; margin: 8px 0; color: #336; }
-  .clef-label { text-align: center; font-size: 14px; color: #556; margin-bottom: 4px; }
-  .toggle-mode { text-align: center; margin-bottom: 10px; }
-  .toggle-mode button { padding: 6px 12px; font-size: 13px; border: none;
-    border-radius: 6px; background: #e0e0e0; color: #333; }
-  .toggle-mode button.active { background: #4a90d9; color: #fff; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Музыкальная улитка</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f4f4f9; color: #333; }
+        header { background-color: #4a90e2; color: white; padding: 15px 20px; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .snail-icon { width: 32px; height: 32px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        h1 { margin: 0; font-size: 1.2rem; }
+        .progress-bar-container { width: 100%; background: rgba(255,255,255,0.3); border-radius: 10px; height: 6px; margin-top: 10px; overflow: hidden; }
+        .progress-bar { height: 100%; background: #fff; width: 0%; transition: width 0.3s; }
+        .screen { display: none; padding: 20px; }
+        .screen.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .menu-grid { display: grid; grid-template-columns: 1fr; gap: 15px; max-width: 400px; margin: 40px auto; }
+        .btn { background: white; border: none; padding: 20px; border-radius: 12px; font-size: 1rem; font-weight: 600; color: #333; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.1s, box-shadow 0.2s; text-align: center; }
+        .btn:active { transform: scale(0.98); }
+        .btn:hover { box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
 
-  .staff { position: relative; height: 150px; max-width: 340px; margin: 10px auto;
-    background: #fff; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.08); }
-  .line { position: absolute; left: 12px; right: 12px; height: 2px; background: #444; }
-  .note-head { position: absolute; width: 30px; height: 22px; background: #222;
-    border-radius: 50%; transform: rotate(-20deg); left: calc(50% - 15px); }
-  .note-stem { position: absolute; width: 3px; height: 46px; background: #222;
-    left: calc(50% + 11px); }
-  .ledger { position: absolute; height: 2px; background: #444; width: 48px;
-    left: calc(50% - 24px); display: none; }
-  .answers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
-  .answers button { width: 45%; max-width: 150px; padding: 14px; font-size: 18px;
-    border: none; border-radius: 12px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.12); }
-  .feedback { text-align: center; font-size: 18px; height: 24px; margin-top: 10px; }
+        .piano-container { position: relative; display: flex; justify-content: center; margin-top: 20px; overflow-x: auto; padding-bottom: 20px; }
+        .key { width: 40px; height: 160px; border: 1px solid #333; background: white; position: relative; display: flex; align-items: center; justify-content: center; font-size: 12px; user-select: none; cursor: pointer; transition: background 0.1s; }
+        .key.active { background: #4a90e2; color: white; z-index: 10; }
+        .key.wrong { background: #ff4d4d; color: white; }
+        .key.white { border-left: 2px solid #333; border-right: 2px solid #333; }
+        .key.black { width: 24px; height: 100px; background: #000; color: white; z-index: 5; margin-left: -12px; margin-right: -12px; }
+        .key.black.active { background: #ff4d4d; }
 
-  #fallArea { position: relative; height: 380px; max-width: 360px; margin: 0 auto;
-    overflow: hidden; background: #e8f1fb; border-radius: 12px; }
-  .fall-note { position: absolute; width: 44px; height: 44px; border-radius: 50%;
-    color: #fff; font-weight: bold; display: flex; align-items: center;
-    justify-content: center; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,.2); }
-  #keys { display: flex; max-width: 360px; margin: 8px auto; }
-  #keys button { flex: 1; height: 70px; background: #fff; border: 1px solid #ccd;
-    border-radius: 0 0 8px 8px; font-size: 14px; color: #333; }
-  #keys button:active { background: #ffd54f; }
+        .note-fall-container { position: relative; height: 400px; background: #fff; border-radius: 12px; overflow: hidden; margin: 20px auto; max-width: 600px; border: 2px solid #ddd; }
+        .falling-note { position: absolute; left: 50%; transform: translateX(-50%); font-size: 48px; font-weight: bold; color: #4a90e2; }
+        
+        .controls { margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .toggle-btn { background: #eee; padding: 8px 16px; border-radius: 20px; border: none; cursor: pointer; font-weight: 600; }
+        .toggle-btn.active { background: #4a90e2; color: white; }
 
-  #piano { display: flex; justify-content: center; gap: 4px; max-width: 400px; margin: 10px auto; }
-  #piano button { width: 13%; height: 90px; border: 1px solid #99a; border-radius: 0 0 6px 6px;
-    background: #fff; font-size: 12px; color: #333; }
-  #piano button:active { background: #ffd54f; }
-  .msg { text-align: center; font-size: 17px; margin-top: 12px; color: #336; min-height: 22px; }
-  .replay { display: block; margin: 12px auto 0; padding: 12px 28px; font-size: 17px;
-    border: none; border-radius: 12px; background: #ffd54f; color: #333;
-    box-shadow: 0 2px 6px rgba(0,0,0,.15); }
-  .replay:disabled { opacity: .5; }
-</style>
+        .score-board { text-align: center; margin-bottom: 20px; font-size: 1.2rem; font-weight: bold; }
+        .replay-btn { background: #2ecc71; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 1rem; margin-top: 10px; }
+        .replay-btn:hover { background: #27ae60; }
+
+        .tree-notes { display: flex; justify-content: center; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .tree-note { width: 50px; height: 50px; border-radius: 50%; background: #4a90e2; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem; cursor: pointer; }
+        .tree-note.played { background: #2ecc71; }
+        .tree-note.wrong { background: #ff4d4d; }
+    </style>
 </head>
 <body>
-<header>
-  <h1>🐌 Музыкальная улитка</h1>
-  <div id="progress"><div id="bar"></div></div>
-</header>
 
-<div id="menu" class="screen active">
-  <button class="menu-btn" onclick="showScreen('guess')">Угадай ноту</button>
-  <button class="menu-btn" onclick="showScreen('fall')">Падающие ноты</button>
-  <button class="menu-btn" onclick="showScreen('tree')">Ёлочка (по нотам)</button>
-</div>
+    <header>
+        <div class="snail-icon">🐌</div>
+        <h1>Музыкальная улитка</h1>
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progBar"></div>
+        </div>
+    </header>
 
-<div id="guess" class="screen">
-  <button class="back" onclick="showScreen('menu')">← Меню</button>
-  <div class="toggle-mode">
-    <button id="btnCam" class="active" onclick="toggleCam(true)">Камертон</button>
-    <button id="btnStr" onclick="toggleCam(false)">Струна</button>
-  </div>
-  <div class="clef-label">Скрипичный ключ: 2-я линия снизу — Соль</div>
-  <div class="staff">
-    <div class="line" style="top:6px"></div>
-    <div class="line" style="top:30px"></div>
-    <div class="line" style="top:54px"></div>
+    <!-- ГЛАВНОЕ МЕНЮ -->
+    <div id="menuScreen" class="screen active menu-grid">
+        <button class="btn" onclick="showScreen('guess')">Угадай ноту</button>
+        <button class="btn" onclick="showScreen('fall')">Падающие ноты</button>
+        <button class="btn" onclick="showScreen('tree')">Ёлочка (по нотам)</button>
+    </div>
+
+    <!-- ЭКРАН 1: УГАДАЙ НОТУ -->
+    <div id="guessScreen" class="screen">
+        <h2>Угадай ноту!</h2>
+        <p id="guessHint" style="text-align: center; margin-bottom: 20px;">Нажми на клавишу, чтобы услышать звук</p>
+        <div class="piano-container" id="pianoGuess">
+            <!-- Клавиши генерируются JS -->
+        </div>
+        <div class="controls">
+            <button class="toggle-btn" id="camBtn1" onclick="toggleCam()">Камертон</button>
+            <button class="toggle-btn" id="stringBtn1" onclick="toggleString()">Струна</button>
+        </div>
+        <button class="replay-btn" onclick="playCurrentNote()">Повторить звук</button>
+        <button class="btn" onclick="showScreen('menu')">Назад в меню</button>
+    </div>
+
+    <!-- ЭКРАН 2: ПАДАЮЩИЕ НОТЫ -->
+    <div id="fallScreen" class="screen">
+        <h2>Падающие ноты</h2>
+        <div class="score-board">Счёт: <span id="scoreFall">0</span></div>
+        <div class="note-fall-container" id="fallContainer">
+            <!-- Ноты падают сюда -->
+        </div>
+        <div class="controls">
+            <button class="toggle-btn" id="camBtn2" onclick="toggleCam()">Камертон</button>
+            <button class="toggle-btn" id="stringBtn2" onclick="toggleString()">Струна</button>
+        </div>
+        <button class="btn" onclick="showScreen('menu')">Назад в меню</button>
+    </div>
+
+    <!-- ЭКРАН 3: ЁЛОЧКА -->
+    <div id="treeScreen" class="screen">
+        <h2>Сыграй Ёлочку!</h2>
+        <p style="text-align: center;">Нажимай на ноты в правильном порядке</p>
+        <div class="tree-notes" id="treeNotes">
+            <!-- Ноты ёлочки -->
+        </div>
+        <button class="replay-btn" onclick="replaySeq()">Повторить мелодию</button>
+        <button class="btn" onclick="showScreen('menu')">Назад в меню</button>
+    </div>
+
+    <script>
+        // --- НАСТРОЙКИ И СОСТОЯНИЕ ---
+        const notes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+        const noteNames = {
+            'C': 'До', 'D': 'Ре', 'E': 'Ми', 'F': 'Фа', 'G': 'Соль', 'A': 'Ля', 'B': 'Си'
+        };
+        
+        // ИСПРАВЛЕНО: tSeq теперь корректно инициализируется как пустой массив
+        let tSeq = , tStep = 0, tLevel = 1, tPlaying = false;
+        let currentNote = 'C';
+        let isCamerton = true; // true = камертон, false = струна
+        let score = 0;
+        let gameInterval;
+        let fallNotes = ;
+
+        // --- ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initPiano();
+            initTree();
+            updateToggleButtons();
+        });
+
+        // --- УПРАВЛЕНИЕ ЭКРАНАМИ ---
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+            
+            const target = document.getElementById(screenId + 'Screen');
+            if (target) {
+                target.style.display = 'block';
+                target.classList.add('active');
+                
+                // Сброс прогресса при входе в меню
+                if(screenId === 'menu') {
+                    document.getElementById('progBar').style.width = '0%';
+                }
+            }
+        }
+
+        // --- ГЕНЕРАЦИЯ КЛАВИАТУРЫ ---
+        function initPiano() {
+            const container = document.getElementById('pianoGuess');
+            container.innerHTML = '';
+            // Простая клавиатура: До-Си (белые) + черные
+            const keys = [
+                { n: 'C', type: 'white' }, { n: 'C#', type: 'black' },
+                { n: 'D', type: 'white' }, { n: 'D#', type: 'black' },
+                { n: 'E', type: 'white' },
+                { n: 'F', type: 'white' }, { n: 'F#', type: 'black' },
+                { n: 'G', type: 'white' }, { n: 'G#', type: 'black' },
+                { n: 'A', type: 'white' }, { n: 'A#', type: 'black' },
+                { n: 'B', type: 'white' }
+            ];
+
+            keys.forEach(k => {
+                const key = document.createElement('div');
+                key.className = `key \${k.type}`;
+                key.innerText = k.type === 'white' ? noteNames[k.n.replace('#', '')] : '';
+                key.onclick = () => checkNote(k.n);
+                container.appendChild(key);
+            });
+        }
+
+        // --- ЛОГИКА ИГРЫ "УГАДАЙ НОТУ" ---
+        function pickRandomNote() {
+            const idx = Math.floor(Math.random() * notes.length);
+            currentNote = notes[idx];
+            document.getElementById('guessHint').innerText = `Что это за нота? (Это \${noteNames[currentNote]})`;
+            // В реальной игре текст подсказки был бы скрыт, но для теста оставим
+            document.getElementById('guessHint').style.color = '#666';
+        }
+
+        function checkNote(playedNote) {
+            const isCorrect = playedNote.split('#') === currentNote;
+            const keys = document.querySelectorAll('#pianoGuess .key');
+            
+            keys.forEach(k => k.classList.remove('active', 'wrong'));
+            
+            // Подсветка нажатой клавиши
+            const pressedKey = keys[Array.from(keys).findIndex(k => k.innerText === noteNames[playedNote.split('#')])];
+            if(pressedKey) pressedKey.classList.add(isCorrect ? 'active' : 'wrong');
+
+            if (isCorrect) {
+                setTimeout(pickRandomNote, 1000);
+                playSound(currentNote); // Играем правильный ответ для подтверждения
+            } else {
+                // Мигание неправильной клавиши
+                setTimeout(() => pressedKey.classList.remove('wrong'), 500);
+            }
+        }
+
+        // --- ЛОГИКА "ПАДАЮЩИЕ НОТЫ" ---
+        function startFallGame() {
+            score = 0;
+            document.getElementById('scoreFall').innerText = score;
+            clearInterval(gameInterval);
+            gameInterval = setInterval(spawnNote, 1500);
+        }
+
+        function spawnNote() {
+            const note = notes[Math.floor(Math.random() * notes.length)];
+            const el = document.createElement('div');
+            el.className = 'falling-note';
+            el.innerText = noteNames[note];
+            el.style.top = '-50px';
+            
+            const container = document.getElementById('fallContainer');
+            container.appendChild(el);
+            fallNotes.push({ el, note, speed: 2 });
+        }
+
+        function updateFall() {
+            fallNotes.forEach((item, index) => {
+                item.el.style.top = (parseInt(item.el.style.top || 0) + item.speed) + 'px';
+                if (parseInt(item.el.style.top) > 350) {
+                    // Промах
+                    item.el.remove();
+                    fallNotes.splice(index, 1);
+                }
+            });
+            requestAnimationFrame(updateFall);
+        }
+        // Запуск анимации падения сразу
+        updateFall();
+
+        // Обработка клика по контейнеру (упрощенно - попадание в любую ноту)
+        document.getElementById('fallContainer').onclick = function(e) {
+            if(e.target.classList.contains('falling-note')) {
+                e.target.style.display = 'none';
+                score++;
+                document.getElementById('scoreFall').innerText = score;
+                // Удаляем из массива
+                fallNotes = fallNotes.filter(f => f.el !== e.target);
+            }
+        };
+
+        // --- ЛОГИКА "ЁЛОЧКА" ---
+        function initTree() {
+            // Мелодия "В лесу родилась ёлочка": E-C-E-C-F-E-D... (упрощенно)
+            tSeq = ['E', 'C', 'E', 'C', 'F', 'E', 'D', 'C']; 
+            renderTree();
+        }
+
+        function renderTree() {
+            const container = document.getElementById('treeNotes');
+            container.innerHTML = '';
+            tSeq.forEach((note, idx) => {
+                const el = document.createElement('div');
+                el.className = 'tree-note';
+                el.innerText = noteNames[note];
+                el.onclick = () => handleTreeClick(idx);
+                container.appendChild(el);
+            });
+        }
+
+        function handleTreeClick(idx) {
+            if (tPlaying) return;
+            
+            const el = document.querySelectorAll('.tree-note')[idx];
+            if (idx === tStep) {
+                el.classList.add('played');
+                playSound(tSeq[idx]);
+                tStep++;
+                if (tStep >= tSeq.length) {
+                    alert("Поздравляю! Ты сыграл всю мелодию!");
+                    resetTree();
+                }
+            } else {
+                el.classList.add('wrong');
+                setTimeout(() => el.classList.remove('wrong'), 500);
+                // Сбрасываем прогресс при ошибке (опционально)
+                // resetTree(); 
+            }
+        }
+
+        function replaySeq() {
+            if (tPlaying) return;
+            tPlaying = true;
+            tStep = 0;
+            const notesEls = document.querySelectorAll('.tree-note');
+            notesEls.forEach(el => el.classList.remove('played', 'wrong'));
+            
+            const playStep = () => {
+                if (tStep >= tSeq.length) {
+                    tPlaying = false;
+                    return;
+                }
+                const el = notesEls[tStep];
+                el.classList.add('played');
+                playSound(tSeq[tStep]);
+                tStep++;
+                setTimeout(playStep, 600);
+            };
+            playStep();
+        }
+
+        function resetTree() {
+            tStep = 0;
+            tPlaying = false;
+            renderTree();
+        }
+
+        // --- ЗВУК И НАСТРОЙКИ ---
+        function toggleCam() {
+            isCamerton = true;
+            updateToggleButtons();
+        }
+
+        function toggleString() {
+            isCamerton = false;
+            updateToggleButtons();
+        }
+
+        function updateToggleButtons() {
+            const c1 = document.getElementById('camBtn1'), s1 = document.getElementById('stringBtn1');
+            const c2 = document.getElementById('camBtn2'), s2 = document.getElementById('stringBtn2');
+            
+            const setState = (c, s) => {
+                c.classList.toggle('active', isCamerton);
+                s.classList.toggle('active', !isCamerton);
+            };
+            if(c1) setState(c1, s1);
+            if(c2) setState(c2, s2);
+        }
+
+        function playSound(note) {
+            // Здесь должна быть логика синтеза звука
+            console.log(`Играем ноту: ${note}, режим: ${isCamerton ? 'Камертон' : 'Струна'}`);
+            
+            // Визуальный эффект нажатия
+            const keys = document.querySelectorAll('.key');
+            keys.forEach(k => k.classList.remove('active'));
+            
+            const targetName = noteNames[note];
+            const targetKey = Array.from(keys).find(k => k.innerText === targetName);
+            if(targetKey) targetKey.classList.add('active');
+            setTimeout(() => targetKey.classList.remove('active'), 200);
+        }
+
+        function playCurrentNote() {
+            playSound(currentNote);
+        }
+
+        // Старт игры при загрузке (для теста)
+        pickRandomNote();
+    </script>
+</body>
+</html>
