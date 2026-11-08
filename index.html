@@ -75,3 +75,11 @@
 <div id="guess" class="screen">
   <button class="back" onclick="showScreen('menu')">← Меню</button>
   <div class="toggle-mode">
+    <button id="btnCam" class="active" onclick="toggleCam(true)">Камертон</button>
+    <button id="btnStr" onclick="toggleCam(false)">Струна</button>
+  </div>
+  <div class="clef-label">Скрипичный ключ: 2-я линия снизу — Соль</div>
+  <div class="staff">
+    <div class="line" style="top:6px"></div>
+    <div class="line" style="top:30px"></div>
+    <div class="line" style="top:54px"></div>
