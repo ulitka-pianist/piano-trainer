@@ -45,10 +45,11 @@
     border-radius: 0 0 8px 8px; font-size: 14px; color: #333; }
   #keys button:active { background: #ffd54f; }
 
-  .tree-row { display: flex; justify-content: center; gap: 8px; margin: 8px 0; }
-  .tree-row button { width: 58px; height: 58px; border: none; border-radius: 12px;
-    font-size: 13px; color: #fff; background: #2e7d32; }
-  .tree-row button.lit { background: #ffd54f; color: #333; }
+  /* клавиши-пианино в один ряд */
+  #piano { display: flex; justify-content: center; gap: 4px; max-width: 400px; margin: 10px auto; }
+  #piano button { width: 13%; height: 90px; border: 1px solid #99a; border-radius: 0 0 6px 6px;
+    background: #fff; font-size: 12px; color: #333; }
+  #piano button:active { background: #ffd54f; }
   .msg { text-align: center; font-size: 17px; margin-top: 12px; color: #336; min-height: 22px; }
 </style>
 </head>
@@ -92,7 +93,7 @@
 <div id="tree" class="screen">
   <button class="back" onclick="showScreen('menu')">← Меню</button>
   <div class="score">Уровень: <span id="tLevel">1</span></div>
-  <div id="treeRows"></div>
+  <div id="piano"></div>
   <div class="msg" id="tMsg">Слушай и повторяй!</div>
 </div>
 
@@ -101,41 +102,45 @@ const NOTES = ['До','Ре','Ми','Фа','Соль','Ля','Си'];
 const COLORS = ['#e53935','#fb8c00','#fdd835','#43a047','#1e88e5','#8e24aa','#5d4037'];
 const NOTE_Y = [127, 115, 103, 91, 79, 67, 55];
 
-/* Точные частоты первой октавы, Гц:
-   До C4=261.63, Ре D4=293.66, Ми E4=329.63, Фа F4=349.23,
-   Соль G4=392.00, Ля A4=440.00, Си B4=493.88 */
+/* Частоты первой октавы, Гц */
 const FREQ = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88];
 
-/* --- Звук: у каждой ноты своя частота --- */
+/* --- Звук: «молоточковый» тембр из нескольких гармоник --- */
 let audioCtx = null;
 function playNote(i) {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
     const t = audioCtx.currentTime;
-    const freq = FREQ[i];
-
-    // основной тон
-    const o1 = audioCtx.createOscillator();
-    const g1 = audioCtx.createGain();
-    o1.type = 'triangle';
-    o1.frequency.value = freq;
-    g1.gain.setValueAtTime(0.001, t);
-    g1.gain.linearRampToValueAtTime(0.3, t + 0.01);
-    g1.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
-    o1.connect(g1); g1.connect(audioCtx.destination);
-    o1.start(t); o1.stop(t + 0.8);
-
-    // обертон на октаву выше — добавляет «простоты» и делает высоту слышнее
-    const o2 = audioCtx.createOscillator();
-    const g2 = audioCtx.createGain();
-    o2.type = 'sine';
-    o2.frequency.value = freq * 2;
-    g2.gain.setValueAtTime(0.001, t);
-    g2.gain.linearRampToValueAtTime(0.08, t + 0.01);
-    g2.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-    o2.connect(g2); g2.connect(audioCtx.destination);
-    o2.start(t); o2.stop(t + 0.5);
+    const f = FREQ[i];
+    // Гармоники как у струны: 1x, 2x, 3x, 4x — с падающей громкостью.
+    // Короткая атака и долгое затухание дают ощущение удара молоточка.
+    const harmonics = [
+      { mult: 1,    gain: 0.30, decay: 1.4 },
+      { mult: 2,    gain: 0.14, decay: 0.9 },
+      { mult: 3,    gain: 0.07, decay: 0.6 },
+      { mult: 4.02, gain: 0.04, decay: 0.4 }  // чуть расстроена — теплее
+    ];
+    harmonics.forEach(h => {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'sine';
+      o.frequency.value = f * h.mult;
+      g.gain.setValueAtTime(0.001, t);
+      g.gain.linearRampToValueAtTime(h.gain, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.001, t + h.decay);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t); o.stop(t + h.decay + 0.05);
+    });
+    // короткий «щелчок» удара — имитация молоточка
+    const oN = audioCtx.createOscillator();
+    const gN = audioCtx.createGain();
+    oN.type = 'triangle';
+    oN.frequency.value = f * 6;
+    gN.gain.setValueAtTime(0.10, t);
+    gN.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+    oN.connect(gN); gN.connect(audioCtx.destination);
+    oN.start(t); oN.stop(t + 0.08);
   } catch (e) {}
 }
 
@@ -162,7 +167,6 @@ function newGuess() {
   const ledger = document.getElementById('gLedger');
   ledger.style.display = (gAnswer === 0) ? 'block' : 'none';
   ledger.style.top = (y - 1) + 'px';
-  playNote(gAnswer);
   document.getElementById('gFeedback').textContent = '';
   const btns = document.getElementById('gAnswers');
   btns.innerHTML = '';
@@ -181,7 +185,7 @@ function newGuess() {
   });
 }
 
-/* --- Падающие ноты --- */
+/* --- Падающие ноты: звук только при верном нажатии --- */
 let fallTimer = null, spawnTimer = null, fScore = 0, fMiss = 0;
 function startFall() {
   const keys = document.getElementById('keys');
@@ -207,7 +211,6 @@ function spawnNote() {
   const area = document.getElementById('fallArea');
   if (area.children.length > 6) return;
   const n = Math.floor(Math.random() * 7);
-  playNote(n);
   const d = document.createElement('div');
   d.className = 'fall-note';
   d.textContent = NOTES[n];
@@ -227,7 +230,6 @@ function moveNotes() {
   });
 }
 function tapKey(i) {
-  playNote(i);
   const area = document.getElementById('fallArea');
   let target = null, best = -1;
   [...area.children].forEach(d => {
@@ -236,33 +238,32 @@ function tapKey(i) {
       if (t > best) { best = t; target = d; }
     }
   });
-  if (target) { target.remove(); fScore++;
-    document.getElementById('fScore').textContent = fScore; setProgress(fScore, 30); }
+  if (target) {
+    playNote(i);               // звук только за пойманную ноту
+    target.remove();
+    fScore++;
+    document.getElementById('fScore').textContent = fScore;
+    setProgress(fScore, 30);
+  }
 }
 
-/* --- Ёлочка: повтори мелодию --- */
+/* --- Ёлочка: клавиши в ряд, как на пианино --- */
 let tSeq = [], tStep = 0, tLevel = 1, tPlaying = false;
 function startTree() {
   tLevel = 1; tSeq = []; tStep = 0;
   document.getElementById('tLevel').textContent = 1;
-  buildTree();
+  buildPiano();
   setTimeout(playSeq, 600);
 }
-function buildTree() {
-  const rows = [ [6], [4,5], [2,3], [0,1] ];
-  const box = document.getElementById('treeRows');
+function buildPiano() {
+  const box = document.getElementById('piano');
   box.innerHTML = '';
-  rows.forEach(row => {
-    const r = document.createElement('div');
-    r.className = 'tree-row';
-    row.forEach(i => {
-      const b = document.createElement('button');
-      b.textContent = NOTES[i];
-      b.style.background = COLORS[i];
-      b.onclick = () => tapTree(i);
-      r.appendChild(b);
-    });
-    box.appendChild(r);
+  NOTES.forEach((n, i) => {
+    const b = document.createElement('button');
+    b.textContent = n;
+    b.style.borderTop = '4px solid ' + COLORS[i];   // цветная полоска для запоминания
+    b.onclick = () => tapTree(i);
+    box.appendChild(b);
   });
 }
 function playSeq() {
@@ -279,10 +280,10 @@ function playSeq() {
   }, 600 * tSeq.length);
 }
 function flash(i) {
-  const btns = document.querySelectorAll('.tree-row button');
-  const b = [...btns].find(x => x.textContent === NOTES[i]);
-  b.classList.add('lit');
-  setTimeout(() => b.classList.remove('lit'), 350);
+  const btns = document.querySelectorAll('#piano button');
+  btns[i].classList.add('lit') || null;
+  btns[i].style.background = '#ffd54f';
+  setTimeout(() => { btns[i].style.background = '#fff'; }, 350);
 }
 function tapTree(i) {
   if (tPlaying) return;
