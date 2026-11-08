@@ -66,14 +66,14 @@
 <div id="menu" class="screen active">
   <button class="menu-btn" onclick="showScreen('guess')">Угадай ноту</button>
   <button class="menu-btn" onclick="showScreen('fall')">Падающие ноты</button>
-  <button class="menu-btn" onclick="showScreen('tree')">Елочка (по нотам)</button>
+  <button class="menu-btn" onclick="showScreen('tree')">Ёлочка (по нотам)</button>
 </div>
 
 <div id="guess" class="screen">
   <button class="back" onclick="showScreen('menu')">Назад в меню</button>
   <div class="toggle-mode">
-    <button id="btnCam" class="cam-btn active" onclick="toggleCam(true)">Камертон</button>
-    <button id="btnStr" class="str-btn" onclick="toggleCam(false)">Струна</button>
+    <button class="cam-btn active" onclick="toggleCam(true)">Камертон</button>
+    <button class="str-btn" onclick="toggleCam(false)">Струна</button>
   </div>
   <div class="clef-label">Скрипичный ключ: 2-я линия снизу — Соль</div>
   <div class="staff">
@@ -107,16 +107,15 @@
 </div>
 
 <script>
-var NOTES = new Array('До', 'Ре', 'Ми', 'Фа', 'Соль', 'Ля', 'Си');
-var COLORS = new Array('#e53935', '#fb8c00', '#fdd835', '#43a047', '#1e88e5', '#8e24aa', '#5d4037');
-var NOTE_Y = new Array(127, 115, 103, 91, 79, 67, 55);
-var FREQ = new Array(261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88);
-
-var MELODIES = new Array(
-  new Array(4, 4, 4, 2, 5, 5, 4, 2, 4, 4, 4, 2, 5, 5, 4),
-  new Array(0, 2, 0, 2, 0, 2, 2, 2, 0, 2, 0, 2, 0, 2, 2),
-  new Array(3, 4, 5, 5, 3, 4, 5, 5, 3, 4, 5, 5, 3, 4, 5)
-);
+var NOTES = ['До', 'Ре', 'Ми', 'Фа', 'Соль', 'Ля', 'Си'];
+var COLORS = ['#e53935', '#fb8c00', '#fdd835', '#43a047', '#1e88e5', '#8e24aa', '#5d4037'];
+var NOTE_Y = [127, 115, 103, 91, 79, 67, 55];
+var FREQ = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88];
+var MELODIES = [
+  [4, 4, 4, 2, 5, 5, 4, 2, 4, 4, 4, 2, 5, 5, 4],
+  [0, 2, 0, 2, 0, 2, 2, 2, 0, 2, 0, 2, 0, 2, 2],
+  [3, 4, 5, 5, 3, 4, 5, 5, 3, 4, 5, 5, 3, 4, 5]
+];
 
 var audioCtx = null;
 var useCamerton = true;
@@ -125,13 +124,8 @@ function toggleCam(isCam) {
   useCamerton = isCam;
   var camBtns = document.querySelectorAll('.cam-btn');
   var strBtns = document.querySelectorAll('.str-btn');
-  var i;
-  for (i = 0; i < camBtns.length; i++) {
-    if (isCam) { camBtns[i].classList.add('active'); } else { camBtns[i].classList.remove('active'); }
-  }
-  for (i = 0; i < strBtns.length; i++) {
-    if (isCam) { strBtns[i].classList.remove('active'); } else { strBtns[i].classList.add('active'); }
-  }
+  camBtns.forEach(function(b) { b.classList.toggle('active', isCam); });
+  strBtns.forEach(function(b) { b.classList.toggle('active', !isCam); });
 }
 
 function playNote(i) {
@@ -151,17 +145,10 @@ function playNote(i) {
       o.connect(g); g.connect(audioCtx.destination);
       o.start(t); o.stop(t + 0.8);
     } else {
-      var harmonics = new Array(
-        new Array(1, 0.30, 1.4),
-        new Array(2, 0.14, 0.9),
-        new Array(3, 0.07, 0.6),
-        new Array(4.02, 0.04, 0.4)
-      );
-      var h, oh, gh, k;
-      for (k = 0; k < harmonics.length; k++) {
-        h = harmonics[k];
-        oh = audioCtx.createOscillator();
-        gh = audioCtx.createGain();
+      var harmonics = [[1, 0.30, 1.4], [2, 0.14, 0.9], [3, 0.07, 0.6], [4.02, 0.04, 0.4]];
+      harmonics.forEach(function(h) {
+        var oh = audioCtx.createOscillator();
+        var gh = audioCtx.createGain();
         oh.type = 'sine';
         oh.frequency.value = f * h[0];
         gh.gain.setValueAtTime(0.001, t);
@@ -169,7 +156,7 @@ function playNote(i) {
         gh.gain.exponentialRampToValueAtTime(0.001, t + h[2]);
         oh.connect(gh); gh.connect(audioCtx.destination);
         oh.start(t); oh.stop(t + h[2] + 0.05);
-      }
+      });
       var oN = audioCtx.createOscillator();
       var gN = audioCtx.createGain();
       oN.type = 'triangle';
@@ -183,9 +170,7 @@ function playNote(i) {
 }
 
 function showScreen(id) {
-  var screens = document.querySelectorAll('.screen');
-  var i;
-  for (i = 0; i < screens.length; i++) screens[i].classList.remove('active');
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
   document.getElementById(id).classList.add('active');
   stopFall();
   if (id === 'guess') newGuess();
@@ -205,18 +190,17 @@ function newGuess() {
   document.getElementById('gHead').style.top = (y - 11) + 'px';
   document.getElementById('gStem').style.top = (y - 46) + 'px';
   var ledger = document.getElementById('gLedger');
-  if (gAnswer === 0) { ledger.style.display = 'block'; } else { ledger.style.display = 'none'; }
+  ledger.style.display = (gAnswer === 0) ? 'block' : 'none';
   ledger.style.top = (y - 1) + 'px';
   document.getElementById('gFeedback').textContent = '';
   var btns = document.getElementById('gAnswers');
   btns.innerHTML = '';
-  for (var i = 0; i < NOTES.length; i++) {
+  NOTES.forEach(function(n, i) {
     var b = document.createElement('button');
-    b.textContent = NOTES[i];
-    var idx = i;
-    b.onclick = function() { answerGuess(idx); };
+    b.textContent = n;
+    b.onclick = function() { answerGuess(i); };
     btns.appendChild(b);
-  }
+  });
 }
 function answerGuess(i) {
   playNote(i);
@@ -236,20 +220,19 @@ var fallTimer = null, spawnTimer = null, fScore = 0, fMiss = 0, melodyIdx = 0, n
 function startFall() {
   var keys = document.getElementById('keys');
   keys.innerHTML = '';
-  for (var i = 0; i < NOTES.length; i++) {
+  NOTES.forEach(function(n, i) {
     var b = document.createElement('button');
-    b.textContent = NOTES[i];
+    b.textContent = n;
     b.style.borderTop = '4px solid ' + COLORS[i];
-    var idx = i;
-    b.onclick = function() { tapKey(idx); };
+    b.onclick = function() { tapKey(i); };
     keys.appendChild(b);
-  }
+  });
   fScore = 0; fMiss = 0; notePos = 0;
   melodyIdx = Math.floor(Math.random() * MELODIES.length);
   document.getElementById('fScore').textContent = 0;
   document.getElementById('fMiss').textContent = 0;
   document.getElementById('fallArea').innerHTML = '';
-  spawnTimer = setInterval(spawnNote, 400);
+  spawnTimer = setInterval(spawnNote, 900);
   fallTimer = setInterval(moveNotes, 30);
 }
 function stopFall() {
@@ -266,7 +249,7 @@ function spawnNote() {
   d.className = 'fall-note';
   d.textContent = NOTES[n];
   d.style.background = COLORS[n];
-  d.style.left = (n * 12.8 + 2) + '%';
+  d.style.left = ((n + 0.5) * 14.28 - 6.1) + '%';
   d.style.top = '-50px';
   d.setAttribute('data-note', n);
   area.appendChild(d);
@@ -276,7 +259,7 @@ function moveNotes() {
   var H = area.clientHeight;
   for (var k = area.children.length - 1; k >= 0; k--) {
     var d = area.children[k];
-    var top = parseFloat(d.style.top) + 2.4;
+    var top = parseFloat(d.style.top) + 1.6;
     d.style.top = top + 'px';
     if (top > H - 40) {
       d.remove();
@@ -305,10 +288,10 @@ function tapKey(i) {
   }
 }
 
-/* Елочка с кнопкой повтора */
-var tSeq = new Array(), tStep = 0, tLevel = 1, tPlaying = false;
+/* Ёлочка с кнопкой повтора */
+var tSeq = [], tStep = 0, tLevel = 1, tPlaying = false;
 function startTree() {
-  tLevel = 1; tSeq = new Array(); tStep = 0;
+  tLevel = 1; tSeq = []; tStep = 0;
   document.getElementById('tLevel').textContent = 1;
   buildPiano();
   setTimeout(playSeq, 600);
@@ -316,41 +299,30 @@ function startTree() {
 function buildPiano() {
   var box = document.getElementById('piano');
   box.innerHTML = '';
-  for (var i = 0; i < NOTES.length; i++) {
+  NOTES.forEach(function(n, i) {
     var b = document.createElement('button');
-    b.textContent = NOTES[i];
+    b.textContent = n;
     b.style.borderTop = '4px solid ' + COLORS[i];
-    var idx = i;
-    b.onclick = function() { tapTree(idx); };
+    b.onclick = function() { tapTree(i); };
     box.appendChild(b);
-  }
+  });
 }
 function replaySeq() {
   if (tPlaying || tSeq.length === 0) return;
-  tPlaying = true;
-  tStep = 0;
-  document.getElementById('tMsg').textContent = 'Слушай еще раз...';
-  document.getElementById('btnReplay').disabled = true;
-  for (var k = 0; k < tSeq.length; k++) {
-    var n = tSeq[k], delay = 600 * k;
-    setTimeout(function() { flash(n); playNote(n); }, delay);
-  }
-  setTimeout(function() {
-    tPlaying = false;
-    document.getElementById('tMsg').textContent = 'Твоя очередь!';
-    document.getElementById('btnReplay').disabled = false;
-  }, 600 * tSeq.length);
+  playSequence(false);
 }
 function playSeq() {
+  playSequence(true);
+}
+function playSequence(addNew) {
   tPlaying = true;
-  tSeq.push(Math.floor(Math.random() * 7));
+  if (addNew) tSeq.push(Math.floor(Math.random() * 7));
   tStep = 0;
-  document.getElementById('tMsg').textContent = 'Слушай...';
+  document.getElementById('tMsg').textContent = addNew ? 'Слушай...' : 'Слушай ещё раз...';
   document.getElementById('btnReplay').disabled = true;
-  for (var k = 0; k < tSeq.length; k++) {
-    var n = tSeq[k], delay = 600 * k;
-    setTimeout(function() { flash(n); playNote(n); }, delay);
-  }
+  tSeq.forEach(function(n, k) {
+    setTimeout(function() { flash(n); playNote(n); }, 600 * k);
+  });
   setTimeout(function() {
     tPlaying = false;
     document.getElementById('tMsg').textContent = 'Твоя очередь!';
@@ -376,7 +348,7 @@ function tapTree(i) {
     }
   } else {
     tStep = 0;
-    document.getElementById('tMsg').textContent = 'Ничего! Нажми Повторить и попробуй снова';
+    document.getElementById('tMsg').textContent = 'Ничего! Нажми «Повторить» и попробуй снова';
   }
 }
 </script>
