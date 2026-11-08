@@ -21,7 +21,6 @@
   .score { text-align: center; font-size: 17px; margin: 8px 0; color: #336; }
   .clef-label { text-align: center; font-size: 14px; color: #556; margin-bottom: 4px; }
 
-  /* Нотный стан: 5 линий рисуем div-ами, чтобы без лишних линий */
   .staff { position: relative; height: 150px; max-width: 340px; margin: 10px auto;
     background: #fff; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.08); }
   .line { position: absolute; left: 12px; right: 12px; height: 2px; background: #444; }
@@ -36,7 +35,6 @@
     border: none; border-radius: 12px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.12); }
   .feedback { text-align: center; font-size: 18px; height: 24px; margin-top: 10px; }
 
-  /* Падающие ноты */
   #fallArea { position: relative; height: 380px; max-width: 360px; margin: 0 auto;
     overflow: hidden; background: #e8f1fb; border-radius: 12px; }
   .fall-note { position: absolute; width: 44px; height: 44px; border-radius: 50%;
@@ -47,7 +45,6 @@
     border-radius: 0 0 8px 8px; font-size: 14px; color: #333; }
   #keys button:active { background: #ffd54f; }
 
-  /* Ёлочка */
   .tree-row { display: flex; justify-content: center; gap: 8px; margin: 8px 0; }
   .tree-row button { width: 58px; height: 58px; border: none; border-radius: 12px;
     font-size: 13px; color: #fff; background: #2e7d32; }
@@ -102,26 +99,43 @@
 <script>
 const NOTES = ['До','Ре','Ми','Фа','Соль','Ля','Си'];
 const COLORS = ['#e53935','#fb8c00','#fdd835','#43a047','#1e88e5','#8e24aa','#5d4037'];
-// Центр овала ноты по вертикали (стан: линии на 7, 31, 55, 79, 103 px)
 const NOTE_Y = [127, 115, 103, 91, 79, 67, 55];
-// Частоты нот первой октавы (Гц)
-const FREQ = [261.6, 293.7, 329.6, 349.2, 392.0, 440.0, 493.9];
 
-/* --- Звук (веб-аудио, без внешних библиотек) --- */
+/* Точные частоты первой октавы, Гц:
+   До C4=261.63, Ре D4=293.66, Ми E4=329.63, Фа F4=349.23,
+   Соль G4=392.00, Ля A4=440.00, Си B4=493.88 */
+const FREQ = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88];
+
+/* --- Звук: у каждой ноты своя частота --- */
 let audioCtx = null;
 function playNote(i) {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
     const t = audioCtx.currentTime;
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = 'triangle';
-    o.frequency.value = FREQ[i];
-    g.gain.setValueAtTime(0.25, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-    o.connect(g); g.connect(audioCtx.destination);
-    o.start(t); o.stop(t + 0.5);
+    const freq = FREQ[i];
+
+    // основной тон
+    const o1 = audioCtx.createOscillator();
+    const g1 = audioCtx.createGain();
+    o1.type = 'triangle';
+    o1.frequency.value = freq;
+    g1.gain.setValueAtTime(0.001, t);
+    g1.gain.linearRampToValueAtTime(0.3, t + 0.01);
+    g1.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+    o1.connect(g1); g1.connect(audioCtx.destination);
+    o1.start(t); o1.stop(t + 0.8);
+
+    // обертон на октаву выше — добавляет «простоты» и делает высоту слышнее
+    const o2 = audioCtx.createOscillator();
+    const g2 = audioCtx.createGain();
+    o2.type = 'sine';
+    o2.frequency.value = freq * 2;
+    g2.gain.setValueAtTime(0.001, t);
+    g2.gain.linearRampToValueAtTime(0.08, t + 0.01);
+    g2.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    o2.connect(g2); g2.connect(audioCtx.destination);
+    o2.start(t); o2.stop(t + 0.5);
   } catch (e) {}
 }
 
@@ -143,12 +157,9 @@ let gAnswer = 0, gScore = 0;
 function newGuess() {
   gAnswer = Math.floor(Math.random() * 7);
   const y = NOTE_Y[gAnswer];
-  const head = document.getElementById('gHead');
-  const stem = document.getElementById('gStem');
+  document.getElementById('gHead').style.top = (y - 11) + 'px';
+  document.getElementById('gStem').style.top = (y - 46) + 'px';
   const ledger = document.getElementById('gLedger');
-  head.style.top = (y - 11) + 'px';
-  stem.style.top = (y - 46) + 'px';
-  // Дополнительная линеечка только для «До» (она под станом)
   ledger.style.display = (gAnswer === 0) ? 'block' : 'none';
   ledger.style.top = (y - 1) + 'px';
   playNote(gAnswer);
