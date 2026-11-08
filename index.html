@@ -9,8 +9,7 @@
         header { background-color: #4a90e2; color: white; padding: 15px 20px; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .snail-icon { width: 32px; height: 32px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; }
         h1 { margin: 0; font-size: 1.2rem; }
-        .progress-bar-container { width: 100%; background: rgba(255,255,255,0.3); border-radius: 10px; height: 6px; margin-top: 10px; overflow: hidden; }
-        .progress-bar { height: 100%; background: #fff; width: 0%; transition: width 0.3s; }
+        
         .screen { display: none; padding: 20px; }
         .screen.active { display: block; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -50,9 +49,6 @@
     <header>
         <div class="snail-icon">🐌</div>
         <h1>Музыкальная улитка</h1>
-        <div class="progress-bar-container">
-            <div class="progress-bar" id="progBar"></div>
-        </div>
     </header>
 
     <!-- ГЛАВНОЕ МЕНЮ -->
@@ -109,13 +105,17 @@
             'C': 'До', 'D': 'Ре', 'E': 'Ми', 'F': 'Фа', 'G': 'Соль', 'A': 'Ля', 'B': 'Си'
         };
         
-        // ИСПРАВЛЕНО: tSeq теперь корректно инициализируется как пустой массив
-        let tSeq = , tStep = 0, tLevel = 1, tPlaying = false;
+        // ИСПРАВЛЕНО: теперь массивы инициализируются корректно
+        let tSeq = ; 
+        let tStep = 0;
+        let tLevel = 1;
+        let tPlaying = false;
+        
         let currentNote = 'C';
         let isCamerton = true; // true = камертон, false = струна
         let score = 0;
         let gameInterval;
-        let fallNotes = ;
+        let fallNotes = ; // ИСПРАВЛЕНО: пустой массив
 
         // --- ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -126,18 +126,17 @@
 
         // --- УПРАВЛЕНИЕ ЭКРАНАМИ ---
         function showScreen(screenId) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+            // Скрываем все экраны
+            document.querySelectorAll('.screen').forEach(s => {
+                s.classList.remove('active');
+                s.style.display = 'none';
+            });
             
+            // Показываем нужный
             const target = document.getElementById(screenId + 'Screen');
             if (target) {
                 target.style.display = 'block';
                 target.classList.add('active');
-                
-                // Сброс прогресса при входе в меню
-                if(screenId === 'menu') {
-                    document.getElementById('progBar').style.width = '0%';
-                }
             }
         }
 
@@ -145,7 +144,6 @@
         function initPiano() {
             const container = document.getElementById('pianoGuess');
             container.innerHTML = '';
-            // Простая клавиатура: До-Си (белые) + черные
             const keys = [
                 { n: 'C', type: 'white' }, { n: 'C#', type: 'black' },
                 { n: 'D', type: 'white' }, { n: 'D#', type: 'black' },
@@ -170,27 +168,30 @@
             const idx = Math.floor(Math.random() * notes.length);
             currentNote = notes[idx];
             document.getElementById('guessHint').innerText = `Что это за нота? (Это \${noteNames[currentNote]})`;
-            // В реальной игре текст подсказки был бы скрыт, но для теста оставим
             document.getElementById('guessHint').style.color = '#666';
         }
 
         function checkNote(playedNote) {
+            // Упрощенная проверка для теста
             const isCorrect = playedNote.split('#') === currentNote;
             const keys = document.querySelectorAll('#pianoGuess .key');
             
             keys.forEach(k => k.classList.remove('active', 'wrong'));
             
-            // Подсветка нажатой клавиши
             const pressedKey = keys[Array.from(keys).findIndex(k => k.innerText === noteNames[playedNote.split('#')])];
             if(pressedKey) pressedKey.classList.add(isCorrect ? 'active' : 'wrong');
 
             if (isCorrect) {
                 setTimeout(pickRandomNote, 1000);
-                playSound(currentNote); // Играем правильный ответ для подтверждения
+                playSound(currentNote);
             } else {
-                // Мигание неправильной клавиши
                 setTimeout(() => pressedKey.classList.remove('wrong'), 500);
             }
+        }
+
+        function playSound(note) {
+            // Заглушка для звука, чтобы не было ошибок
+            console.log("Звук ноты: " + note);
         }
 
         // --- ЛОГИКА "ПАДАЮЩИЕ НОТЫ" ---
@@ -217,136 +218,73 @@
             fallNotes.forEach((item, index) => {
                 item.el.style.top = (parseInt(item.el.style.top || 0) + item.speed) + 'px';
                 if (parseInt(item.el.style.top) > 350) {
-                    // Промах
                     item.el.remove();
                     fallNotes.splice(index, 1);
                 }
             });
             requestAnimationFrame(updateFall);
         }
-        // Запуск анимации падения сразу
+        
+        // Запуск анимации падения сразу при загрузке (для теста)
         updateFall();
-
-        // Обработка клика по контейнеру (упрощенно - попадание в любую ноту)
-        document.getElementById('fallContainer').onclick = function(e) {
-            if(e.target.classList.contains('falling-note')) {
-                e.target.style.display = 'none';
-                score++;
-                document.getElementById('scoreFall').innerText = score;
-                // Удаляем из массива
-                fallNotes = fallNotes.filter(f => f.el !== e.target);
-            }
-        };
 
         // --- ЛОГИКА "ЁЛОЧКА" ---
         function initTree() {
-            // Мелодия "В лесу родилась ёлочка": E-C-E-C-F-E-D... (упрощенно)
-            tSeq = ['E', 'C', 'E', 'C', 'F', 'E', 'D', 'C']; 
-            renderTree();
-        }
-
-        function renderTree() {
             const container = document.getElementById('treeNotes');
             container.innerHTML = '';
-            tSeq.forEach((note, idx) => {
-                const el = document.createElement('div');
-                el.className = 'tree-note';
-                el.innerText = noteNames[note];
-                el.onclick = () => handleTreeClick(idx);
-                container.appendChild(el);
+            const melody = ['C', 'C', 'G', 'G', 'A', 'A', 'G']; // Простая ёлочка
+            
+            melody.forEach((note, idx) => {
+                const btn = document.createElement('div');
+                btn.className = 'tree-note';
+                btn.innerText = noteNames[note];
+                btn.onclick = () => checkTreeNote(idx, note);
+                container.appendChild(btn);
             });
         }
 
-        function handleTreeClick(idx) {
-            if (tPlaying) return;
-            
-            const el = document.querySelectorAll('.tree-note')[idx];
+        function checkTreeNote(idx, note) {
+            const allNotes = document.querySelectorAll('.tree-note');
             if (idx === tStep) {
-                el.classList.add('played');
-                playSound(tSeq[idx]);
+                allNotes[idx].classList.add('played');
                 tStep++;
-                if (tStep >= tSeq.length) {
-                    alert("Поздравляю! Ты сыграл всю мелодию!");
-                    resetTree();
+                if (tStep >= 7) {
+                    alert("Ура! Ты сыграл Ёлочку!");
+                    replaySeq();
                 }
             } else {
-                el.classList.add('wrong');
-                setTimeout(() => el.classList.remove('wrong'), 500);
-                // Сбрасываем прогресс при ошибке (опционально)
-                // resetTree(); 
+                allNotes[idx].classList.add('wrong');
+                setTimeout(() => allNotes[idx].classList.remove('wrong'), 500);
             }
         }
 
         function replaySeq() {
-            if (tPlaying) return;
-            tPlaying = true;
             tStep = 0;
-            const notesEls = document.querySelectorAll('.tree-note');
-            notesEls.forEach(el => el.classList.remove('played', 'wrong'));
-            
-            const playStep = () => {
-                if (tStep >= tSeq.length) {
-                    tPlaying = false;
-                    return;
-                }
-                const el = notesEls[tStep];
-                el.classList.add('played');
-                playSound(tSeq[tStep]);
-                tStep++;
-                setTimeout(playStep, 600);
-            };
-            playStep();
+            const allNotes = document.querySelectorAll('.tree-note');
+            allNotes.forEach(n => n.classList.remove('played', 'wrong'));
+            alert("Слушай мелодию: До-До-Соль-Соль-Ля-Ля-Соль");
         }
 
-        function resetTree() {
-            tStep = 0;
-            tPlaying = false;
-            renderTree();
-        }
-
-        // --- ЗВУК И НАСТРОЙКИ ---
+        // --- ПЕРЕКЛЮЧАТЕЛИ ЗВУКА ---
         function toggleCam() {
             isCamerton = true;
-            updateToggleButtons();
+            document.getElementById('camBtn1').classList.add('active');
+            document.getElementById('stringBtn1').classList.remove('active');
+            document.getElementById('camBtn2').classList.add('active');
+            document.getElementById('stringBtn2').classList.remove('active');
         }
 
         function toggleString() {
             isCamerton = false;
-            updateToggleButtons();
+            document.getElementById('camBtn1').classList.remove('active');
+            document.getElementById('stringBtn1').classList.add('active');
+            document.getElementById('camBtn2').classList.remove('active');
+            document.getElementById('stringBtn2').classList.add('active');
         }
 
         function updateToggleButtons() {
-            const c1 = document.getElementById('camBtn1'), s1 = document.getElementById('stringBtn1');
-            const c2 = document.getElementById('camBtn2'), s2 = document.getElementById('stringBtn2');
-            
-            const setState = (c, s) => {
-                c.classList.toggle('active', isCamerton);
-                s.classList.toggle('active', !isCamerton);
-            };
-            if(c1) setState(c1, s1);
-            if(c2) setState(c2, s2);
+            toggleCam();
         }
-
-        function playSound(note) {
-            // Здесь должна быть логика синтеза звука
-            console.log(`Играем ноту: ${note}, режим: ${isCamerton ? 'Камертон' : 'Струна'}`);
-            
-            // Визуальный эффект нажатия
-            const keys = document.querySelectorAll('.key');
-            keys.forEach(k => k.classList.remove('active'));
-            
-            const targetName = noteNames[note];
-            const targetKey = Array.from(keys).find(k => k.innerText === targetName);
-            if(targetKey) targetKey.classList.add('active');
-            setTimeout(() => targetKey.classList.remove('active'), 200);
-        }
-
-        function playCurrentNote() {
-            playSound(currentNote);
-        }
-
-        // Старт игры при загрузке (для теста)
-        pickRandomNote();
     </script>
 </body>
 </html>
