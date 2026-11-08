@@ -19,20 +19,24 @@
   .back { display: inline-block; margin-bottom: 10px; padding: 8px 16px;
     border: none; border-radius: 8px; background: #dbe7f5; color: #336; font-size: 15px; }
   .score { text-align: center; font-size: 17px; margin: 8px 0; color: #336; }
+  .clef-label { text-align: center; font-size: 14px; color: #556; margin-bottom: 4px; }
 
-  /* нота: овал + штиль, никаких спецсимволов */
-  .staff { position: relative; height: 120px; max-width: 340px; margin: 10px auto;
-    background: repeating-linear-gradient(#333 0 2px, transparent 2px 24px);
-    background-position: 0 6px; border-radius: 8px; background-color: #fff; }
+  /* Нотный стан: 5 линий рисуем div-ами, чтобы без лишних линий */
+  .staff { position: relative; height: 150px; max-width: 340px; margin: 10px auto;
+    background: #fff; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.08); }
+  .line { position: absolute; left: 12px; right: 12px; height: 2px; background: #444; }
   .note-head { position: absolute; width: 30px; height: 22px; background: #222;
-    border-radius: 50%; transform: rotate(-20deg); }
-  .note-stem { position: absolute; width: 3px; height: 46px; background: #222; }
+    border-radius: 50%; transform: rotate(-20deg); left: calc(50% - 15px); }
+  .note-stem { position: absolute; width: 3px; height: 46px; background: #222;
+    left: calc(50% + 11px); }
+  .ledger { position: absolute; height: 2px; background: #444; width: 48px;
+    left: calc(50% - 24px); display: none; }
   .answers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
   .answers button { width: 45%; max-width: 150px; padding: 14px; font-size: 18px;
     border: none; border-radius: 12px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.12); }
   .feedback { text-align: center; font-size: 18px; height: 24px; margin-top: 10px; }
 
-  /* падающие ноты */
+  /* Падающие ноты */
   #fallArea { position: relative; height: 380px; max-width: 360px; margin: 0 auto;
     overflow: hidden; background: #e8f1fb; border-radius: 12px; }
   .fall-note { position: absolute; width: 44px; height: 44px; border-radius: 50%;
@@ -43,7 +47,7 @@
     border-radius: 0 0 8px 8px; font-size: 14px; color: #333; }
   #keys button:active { background: #ffd54f; }
 
-  /* ёлочка */
+  /* Ёлочка */
   .tree-row { display: flex; justify-content: center; gap: 8px; margin: 8px 0; }
   .tree-row button { width: 58px; height: 58px; border: none; border-radius: 12px;
     font-size: 13px; color: #fff; background: #2e7d32; }
@@ -65,7 +69,14 @@
 
 <div id="guess" class="screen">
   <button class="back" onclick="showScreen('menu')">← Меню</button>
+  <div class="clef-label">Скрипичный ключ: 2-я линия снизу — Соль</div>
   <div class="staff">
+    <div class="line" style="top:6px"></div>
+    <div class="line" style="top:30px"></div>
+    <div class="line" style="top:54px"></div>
+    <div class="line" style="top:78px"></div>
+    <div class="line" style="top:102px"></div>
+    <div class="ledger" id="gLedger"></div>
     <div class="note-head" id="gHead"></div>
     <div class="note-stem" id="gStem"></div>
   </div>
@@ -91,6 +102,28 @@
 <script>
 const NOTES = ['До','Ре','Ми','Фа','Соль','Ля','Си'];
 const COLORS = ['#e53935','#fb8c00','#fdd835','#43a047','#1e88e5','#8e24aa','#5d4037'];
+// Центр овала ноты по вертикали (стан: линии на 7, 31, 55, 79, 103 px)
+const NOTE_Y = [127, 115, 103, 91, 79, 67, 55];
+// Частоты нот первой октавы (Гц)
+const FREQ = [261.6, 293.7, 329.6, 349.2, 392.0, 440.0, 493.9];
+
+/* --- Звук (веб-аудио, без внешних библиотек) --- */
+let audioCtx = null;
+function playNote(i) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const t = audioCtx.currentTime;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'triangle';
+    o.frequency.value = FREQ[i];
+    g.gain.setValueAtTime(0.25, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t + 0.5);
+  } catch (e) {}
+}
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -109,12 +142,16 @@ function setProgress(score, max) {
 let gAnswer = 0, gScore = 0;
 function newGuess() {
   gAnswer = Math.floor(Math.random() * 7);
-  // чем выше нота (больше индекс), тем выше на нотном стане
-  const top = 96 - gAnswer * 13;
+  const y = NOTE_Y[gAnswer];
   const head = document.getElementById('gHead');
   const stem = document.getElementById('gStem');
-  head.style.left = '150px'; head.style.top = top + 'px';
-  stem.style.left = '176px'; stem.style.top = (top - 24) + 'px';
+  const ledger = document.getElementById('gLedger');
+  head.style.top = (y - 11) + 'px';
+  stem.style.top = (y - 46) + 'px';
+  // Дополнительная линеечка только для «До» (она под станом)
+  ledger.style.display = (gAnswer === 0) ? 'block' : 'none';
+  ledger.style.top = (y - 1) + 'px';
+  playNote(gAnswer);
   document.getElementById('gFeedback').textContent = '';
   const btns = document.getElementById('gAnswers');
   btns.innerHTML = '';
@@ -122,6 +159,7 @@ function newGuess() {
     const b = document.createElement('button');
     b.textContent = n;
     b.onclick = () => {
+      playNote(i);
       if (i === gAnswer) { gScore++; document.getElementById('gFeedback').textContent = 'Верно! 🐌'; }
       else { document.getElementById('gFeedback').textContent = 'Это ' + NOTES[gAnswer]; }
       document.getElementById('gScore').textContent = gScore;
@@ -158,6 +196,7 @@ function spawnNote() {
   const area = document.getElementById('fallArea');
   if (area.children.length > 6) return;
   const n = Math.floor(Math.random() * 7);
+  playNote(n);
   const d = document.createElement('div');
   d.className = 'fall-note';
   d.textContent = NOTES[n];
@@ -177,6 +216,7 @@ function moveNotes() {
   });
 }
 function tapKey(i) {
+  playNote(i);
   const area = document.getElementById('fallArea');
   let target = null, best = -1;
   [...area.children].forEach(d => {
@@ -220,7 +260,7 @@ function playSeq() {
   tStep = 0;
   document.getElementById('tMsg').textContent = 'Слушай...';
   tSeq.forEach((n, k) => {
-    setTimeout(() => flash(n), 600 * k);
+    setTimeout(() => { flash(n); playNote(n); }, 600 * k);
   });
   setTimeout(() => {
     tPlaying = false;
@@ -235,7 +275,7 @@ function flash(i) {
 }
 function tapTree(i) {
   if (tPlaying) return;
-  flash(i);
+  flash(i); playNote(i);
   if (i === tSeq[tStep]) {
     tStep++;
     if (tStep === tSeq.length) {
