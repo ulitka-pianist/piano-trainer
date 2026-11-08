@@ -1,210 +1,255 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Музыкальная улитка</title>
-    <style>
-        body { font-family: system-ui, -apple-system, sans-serif; background: #f0f4f8; margin: 0; padding: 0; color: #333; }
-        header { background: #4a90e2; color: white; padding: 1rem; text-align: center; position: sticky; top: 0; z-index: 10; }
-        h1 { margin: 0; font-size: 1.4rem; }
-        .progress-bar { width: 80%; margin: 0.5rem auto; height: 6px; background: rgba(255,255,255,0.3); border-radius: 3px; overflow: hidden; }
-        .progress-fill { height: 100%; background: #fff; width: 0%; transition: width 0.3s; }
-        .nav { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 1rem; }
-        button { padding: 12px 20px; border: none; border-radius: 8px; background: white; color: #333; font-weight: 600; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        button:active { transform: scale(0.98); }
-        #main-view { padding: 1rem; }
-        .keyboard { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-top: 1rem; }
-        .key { width: 48px; height: 120px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.1rem; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
-        .key.white { background: white; color: #333; border: 1px solid #ccc; }
-        .key.black { background: #333; color: white; width: 32px; height: 80px; margin-left: -16px; z-index: 2; }
-        .game-area { text-align: center; margin-top: 1rem; }
-        .score-board { font-size: 1.2rem; font-weight: bold; margin-bottom: 1rem; }
-        .note-display { font-size: 2rem; font-weight: bold; margin: 1rem 0; color: #4a90e2; }
-        #mic-status { margin-top: 1rem; padding: 0.5rem; background: #eee; border-radius: 6px; display: none; }
-        .hidden { display: none; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Музыкальная улитка</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: sans-serif; background: #f0f4fa; min-height: 100vh; }
+  header { background: #4a90d9; color: #fff; padding: 14px; text-align: center; }
+  header h1 { font-size: 24px; margin-bottom: 8px; }
+  #progress { height: 10px; background: #9cc3ec; border-radius: 5px; }
+  #bar { height: 100%; width: 0%; background: #ffd54f; border-radius: 5px; transition: width .3s; }
+  .screen { display: none; padding: 16px; }
+  .screen.active { display: block; }
+  button.menu-btn { display: block; width: 100%; max-width: 340px; margin: 10px auto;
+    padding: 14px; font-size: 18px; border: none; border-radius: 12px;
+    background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.12); color: #333; }
+  .back { display: inline-block; margin-bottom: 10px; padding: 8px 16px;
+    border: none; border-radius: 8px; background: #dbe7f5; color: #336; font-size: 15px; }
+  .score { text-align: center; font-size: 17px; margin: 8px 0; color: #336; }
+
+  /* нота: овал + штиль, никаких спецсимволов */
+  .staff { position: relative; height: 120px; max-width: 340px; margin: 10px auto;
+    background: repeating-linear-gradient(#333 0 2px, transparent 2px 24px);
+    background-position: 0 6px; border-radius: 8px; background-color: #fff; }
+  .note-head { position: absolute; width: 30px; height: 22px; background: #222;
+    border-radius: 50%; transform: rotate(-20deg); }
+  .note-stem { position: absolute; width: 3px; height: 46px; background: #222; }
+  .answers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+  .answers button { width: 45%; max-width: 150px; padding: 14px; font-size: 18px;
+    border: none; border-radius: 12px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.12); }
+  .feedback { text-align: center; font-size: 18px; height: 24px; margin-top: 10px; }
+
+  /* падающие ноты */
+  #fallArea { position: relative; height: 380px; max-width: 360px; margin: 0 auto;
+    overflow: hidden; background: #e8f1fb; border-radius: 12px; }
+  .fall-note { position: absolute; width: 44px; height: 44px; border-radius: 50%;
+    color: #fff; font-weight: bold; display: flex; align-items: center;
+    justify-content: center; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,.2); }
+  #keys { display: flex; max-width: 360px; margin: 8px auto; }
+  #keys button { flex: 1; height: 70px; background: #fff; border: 1px solid #ccd;
+    border-radius: 0 0 8px 8px; font-size: 14px; color: #333; }
+  #keys button:active { background: #ffd54f; }
+
+  /* ёлочка */
+  .tree-row { display: flex; justify-content: center; gap: 8px; margin: 8px 0; }
+  .tree-row button { width: 58px; height: 58px; border: none; border-radius: 12px;
+    font-size: 13px; color: #fff; background: #2e7d32; }
+  .tree-row button.lit { background: #ffd54f; color: #333; }
+  .msg { text-align: center; font-size: 17px; margin-top: 12px; color: #336; min-height: 22px; }
+</style>
 </head>
 <body>
-    <header>
-        <h1>🐌 Музыкальная улитка</h1>
-        <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
-    </header>
+<header>
+  <h1>🐌 Музыкальная улитка</h1>
+  <div id="progress"><div id="bar"></div></div>
+</header>
 
-    <div class="nav">
-        <button onclick="showView('menu')">Меню</button>
-        <button onclick="startGame('guess')">Угадай ноту</button>
-        <button onclick="startGame('fall')">Падающие ноты</button>
-        <button onclick="startGame('melody')">Ёлочка (по нотам)</button>
-    </div>
+<div id="menu" class="screen active">
+  <button class="menu-btn" onclick="showScreen('guess')">Угадай ноту</button>
+  <button class="menu-btn" onclick="showScreen('fall')">Падающие ноты</button>
+  <button class="menu-btn" onclick="showScreen('tree')">Ёлочка (по нотам)</button>
+</div>
 
-    <div id="main-view">
-        <div id="menu-view">
-            <h2>Выбери игру</h2>
-            <p>Тренируй слух и пальцы — улитка будет довольна! 😊</p>
-        </div>
+<div id="guess" class="screen">
+  <button class="back" onclick="showScreen('menu')">← Меню</button>
+  <div class="staff">
+    <div class="note-head" id="gHead"></div>
+    <div class="note-stem" id="gStem"></div>
+  </div>
+  <div class="score">Очки: <span id="gScore">0</span></div>
+  <div class="answers" id="gAnswers"></div>
+  <div class="feedback" id="gFeedback"></div>
+</div>
 
-        <div id="game-view" class="hidden">
-            <div class="score-board">Счёт: <span id="score">0</span> | Серия: <span id="streak">0</span></div>
-            <div class="note-display" id="target-note">?</div>
-            <div class="game-area" id="game-area"></div>
-            <div id="mic-status">Слышу: <span id="mic-note">—</span> (<span id="mic-freq">—</span> Гц)</div>
-        </div>
+<div id="fall" class="screen">
+  <button class="back" onclick="showScreen('menu')">← Меню</button>
+  <div class="score">Очки: <span id="fScore">0</span> · Промахи: <span id="fMiss">0</span></div>
+  <div id="fallArea"></div>
+  <div id="keys"></div>
+</div>
 
-        <div id="keyboard-view" class="hidden">
-            <p>Клавиатура для тренировки</p>
-            <div class="keyboard" id="keyboard"></div>
-        </div>
-    </div>
+<div id="tree" class="screen">
+  <button class="back" onclick="showScreen('menu')">← Меню</button>
+  <div class="score">Уровень: <span id="tLevel">1</span></div>
+  <div id="treeRows"></div>
+  <div class="msg" id="tMsg">Слушай и повторяй!</div>
+</div>
 
-    <script>
-        const notes = ['До', 'Ре', 'Ми', 'Фа', 'Соль', 'Ля', 'Си'];
-        const freqs = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88];
-        let score = 0, streak = 0, gameActive = false;
-        let audioCtx = null, oscillator = null, gainNode = null;
+<script>
+const NOTES = ['До','Ре','Ми','Фа','Соль','Ля','Си'];
+const COLORS = ['#e53935','#fb8c00','#fdd835','#43a047','#1e88e5','#8e24aa','#5d4037'];
 
-        function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-        }
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  stopFall();
+  if (id === 'guess') newGuess();
+  if (id === 'fall') startFall();
+  if (id === 'tree') startTree();
+}
 
-        function playNote(freq) {
-            initAudio();
-            if (oscillator) oscillator.stop();
-            oscillator = audioCtx.createOscillator();
-            gainNode = audioCtx.createGain();
-            oscillator.type = 'sine';
-            oscillator.frequency.value = freq;
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-            oscillator.start();
-            oscillator.stop(audioCtx.currentTime + 0.5);
-        }
+function setProgress(score, max) {
+  document.getElementById('bar').style.width = Math.min(100, Math.round(score / max * 100)) + '%';
+}
 
-        function updateProgress() {
-            const percent = Math.min(100, score * 5);
-            document.getElementById('progress').style.width = percent + '%';
-        }
+/* --- Угадай ноту --- */
+let gAnswer = 0, gScore = 0;
+function newGuess() {
+  gAnswer = Math.floor(Math.random() * 7);
+  // чем выше нота (больше индекс), тем выше на нотном стане
+  const top = 96 - gAnswer * 13;
+  const head = document.getElementById('gHead');
+  const stem = document.getElementById('gStem');
+  head.style.left = '150px'; head.style.top = top + 'px';
+  stem.style.left = '176px'; stem.style.top = (top - 24) + 'px';
+  document.getElementById('gFeedback').textContent = '';
+  const btns = document.getElementById('gAnswers');
+  btns.innerHTML = '';
+  NOTES.forEach((n, i) => {
+    const b = document.createElement('button');
+    b.textContent = n;
+    b.onclick = () => {
+      if (i === gAnswer) { gScore++; document.getElementById('gFeedback').textContent = 'Верно! 🐌'; }
+      else { document.getElementById('gFeedback').textContent = 'Это ' + NOTES[gAnswer]; }
+      document.getElementById('gScore').textContent = gScore;
+      setProgress(gScore, 20);
+      setTimeout(newGuess, 700);
+    };
+    btns.appendChild(b);
+  });
+}
 
-        function showView(view) {
-            ['menu-view', 'game-view', 'keyboard-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
-            document.getElementById(view + '-view').classList.remove('hidden');
-            if (view === 'keyboard-view') createKeyboard();
-        }
+/* --- Падающие ноты --- */
+let fallTimer = null, spawnTimer = null, fScore = 0, fMiss = 0;
+function startFall() {
+  const keys = document.getElementById('keys');
+  keys.innerHTML = '';
+  NOTES.forEach((n, i) => {
+    const b = document.createElement('button');
+    b.textContent = n;
+    b.onclick = () => tapKey(i);
+    keys.appendChild(b);
+  });
+  fScore = 0; fMiss = 0;
+  document.getElementById('fScore').textContent = 0;
+  document.getElementById('fMiss').textContent = 0;
+  document.getElementById('fallArea').innerHTML = '';
+  spawnTimer = setInterval(spawnNote, 1300);
+  fallTimer = setInterval(moveNotes, 30);
+}
+function stopFall() {
+  clearInterval(fallTimer); clearInterval(spawnTimer);
+  fallTimer = spawnTimer = null;
+}
+function spawnNote() {
+  const area = document.getElementById('fallArea');
+  if (area.children.length > 6) return;
+  const n = Math.floor(Math.random() * 7);
+  const d = document.createElement('div');
+  d.className = 'fall-note';
+  d.textContent = NOTES[n];
+  d.style.background = COLORS[n];
+  d.style.left = (n * 12.8 + 2) + '%';
+  d.style.top = '-50px';
+  d.dataset.note = n;
+  area.appendChild(d);
+}
+function moveNotes() {
+  const area = document.getElementById('fallArea');
+  const H = area.clientHeight;
+  [...area.children].forEach(d => {
+    d.style.top = (parseFloat(d.style.top) + 2.4) + 'px';
+    if (parseFloat(d.style.top) > H - 40) { d.remove(); fMiss++;
+      document.getElementById('fMiss').textContent = fMiss; setProgress(fScore, 30); }
+  });
+}
+function tapKey(i) {
+  const area = document.getElementById('fallArea');
+  let target = null, best = -1;
+  [...area.children].forEach(d => {
+    if (+d.dataset.note === i) {
+      const t = parseFloat(d.style.top);
+      if (t > best) { best = t; target = d; }
+    }
+  });
+  if (target) { target.remove(); fScore++;
+    document.getElementById('fScore').textContent = fScore; setProgress(fScore, 30); }
+}
 
-        function startGame(type) {
-            score = 0; streak = 0;
-            document.getElementById('score').innerText = score;
-            document.getElementById('streak').innerText = streak;
-            updateProgress();
-            showView('game-view');
-            gameActive = true;
-            document.getElementById('target-note').innerText = '?';
-            document.getElementById('game-area').innerHTML = '';
-            if (type === 'guess') startGuessGame();
-            else if (type === 'fall') startFallGame();
-            else if (type === 'melody') startMelodyGame();
-        }
-
-        function startGuessGame() {
-            const r = Math.floor(Math.random() * notes.length);
-            const note = notes[r], freq = freqs[r];
-            document.getElementById('target-note').innerText = note;
-            playNote(freq);
-            const btn = document.createElement('button');
-            btn.innerText = 'Я угадал!';
-            btn.onclick = () => {
-                score++; streak++;
-                document.getElementById('score').innerText = score;
-                document.getElementById('streak').innerText = streak;
-                updateProgress();
-                startGuessGame();
-            };
-            document.getElementById('game-area').appendChild(btn);
-        }
-
-        function startFallGame() {
-            document.getElementById('game-area').innerHTML = '<p>Ноты падают сверху — нажимай клавиши вовремя! (демо-режим: просто кликай по нотам)</p>';
-            for (let i = 0; i < 3; i++) {
-                const n = notes[Math.floor(Math.random() * notes.length)];
-                const b = document.createElement('button');
-                b.innerText = n;
-                b.style.margin = '5px';
-                b.onclick = () => {
-                    score++; streak++;
-                    document.getElementById('score').innerText = score;
-                    document.getElementById('streak').innerText = streak;
-                    updateProgress();
-                    b.style.display = 'none';
-                    setTimeout(startFallGame, 2000);
-                };
-                document.getElementById('game-area').appendChild(b);
-            }
-        }
-
-        function startMelodyGame() {
-            const melody = ['Соль', 'Соль', 'Ля', 'Соль', 'До', 'Си', 'Соль']; // упрощённая «Ёлочка»
-            let step = 0;
-            document.getElementById('game-area').innerHTML = '<p>Нажимай клавиши по очереди. Темп: <input type="range" id="tempo" min="300" max="1000" value="600"></p>';
-            const tempo = document.getElementById('tempo');
-            function playStep() {
-                if (step >= melody.length) {
-                    alert('Молодец! Мелодия сыграна!');
-                    score += 10;
-                    updateProgress();
-                    startGame('melody');
-                    return;
-                }
-                const n = melody[step];
-                document.getElementById('target-note').innerText = n;
-                playNote(freqs[notes.indexOf(n)]);
-                const btn = document.createElement('button');
-                btn.innerText = 'Сыграл эту ноту';
-                btn.onclick = () => {
-                    step++;
-                    playStep();
-                };
-                document.getElementById('game-area').appendChild(btn);
-            }
-            playStep();
-        }
-
-        function createKeyboard() {
-            const keys = [
-                { n: 'До', f: 261.63, w: true }, { n: 'Ре', f: 293.66, w: true }, { n: 'Ми', f: 329.63, w: true },
-                { n: 'Фа', f: 349.23, w: true }, { n: 'Соль', f: 392.00, w: true }, { n: 'Ля', f: 440.00, w: true }, { n: 'Си', f: 493.88, w: true }
-            ];
-            const container = document.getElementById('keyboard');
-            container.innerHTML = '';
-            keys.forEach((k, i) => {
-                const el = document.createElement('div');
-                el.className = 'key ' + (k.w ? 'white' : 'black');
-                el.innerText = k.n;
-                el.onclick = () => {
-                    playNote(k.f);
-                    el.style.opacity = '0.7';
-                    setTimeout(() => el.style.opacity = '1', 100);
-                };
-                container.appendChild(el);
-            });
-        }
-
-        // Микрофон (упрощённо: показываем заглушку, т.к. точный анализ частоты в браузере сложен без библиотек)
-        const micBtn = document.createElement('button');
-        micBtn.innerText = '🎤 Включить микрофон';
-        micBtn.style.marginTop = '1rem';
-        micBtn.onclick = () => {
-            const status = document.getElementById('mic-status');
-            status.style.display = 'block';
-            status.innerHTML = 'Микрофон активирован (демо: улитка слушает...)';
-            // Здесь можно добавить полноценный анализ частоты через Web Audio API
-        };
-        document.getElementById('game-area').appendChild(micBtn);
-
-        showView('menu');
-    </script>
+/* --- Ёлочка: повтори мелодию --- */
+let tSeq = [], tStep = 0, tLevel = 1, tPlaying = false;
+function startTree() {
+  tLevel = 1; tSeq = []; tStep = 0;
+  document.getElementById('tLevel').textContent = 1;
+  buildTree();
+  setTimeout(playSeq, 600);
+}
+function buildTree() {
+  const rows = [ [6], [4,5], [2,3], [0,1] ];
+  const box = document.getElementById('treeRows');
+  box.innerHTML = '';
+  rows.forEach(row => {
+    const r = document.createElement('div');
+    r.className = 'tree-row';
+    row.forEach(i => {
+      const b = document.createElement('button');
+      b.textContent = NOTES[i];
+      b.style.background = COLORS[i];
+      b.onclick = () => tapTree(i);
+      r.appendChild(b);
+    });
+    box.appendChild(r);
+  });
+}
+function playSeq() {
+  tPlaying = true;
+  tSeq.push(Math.floor(Math.random() * 7));
+  tStep = 0;
+  document.getElementById('tMsg').textContent = 'Слушай...';
+  tSeq.forEach((n, k) => {
+    setTimeout(() => flash(n), 600 * k);
+  });
+  setTimeout(() => {
+    tPlaying = false;
+    document.getElementById('tMsg').textContent = 'Твоя очередь!';
+  }, 600 * tSeq.length);
+}
+function flash(i) {
+  const btns = document.querySelectorAll('.tree-row button');
+  const b = [...btns].find(x => x.textContent === NOTES[i]);
+  b.classList.add('lit');
+  setTimeout(() => b.classList.remove('lit'), 350);
+}
+function tapTree(i) {
+  if (tPlaying) return;
+  flash(i);
+  if (i === tSeq[tStep]) {
+    tStep++;
+    if (tStep === tSeq.length) {
+      document.getElementById('tMsg').textContent = 'Верно! 🐌';
+      tLevel++;
+      document.getElementById('tLevel').textContent = tLevel;
+      setProgress(tLevel, 12);
+      setTimeout(playSeq, 900);
+    }
+  } else {
+    document.getElementById('tMsg').textContent = 'Почти! Начнём заново.';
+    setTimeout(() => { tSeq = []; tStep = 0; playSeq(); }, 900);
+  }
+}
+</script>
 </body>
 </html>
