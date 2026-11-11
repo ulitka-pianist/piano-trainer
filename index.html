@@ -50,15 +50,17 @@
   .fall-note { position: absolute; width: 44px; height: 44px; border-radius: 50%;
     color: #fff; font-weight: bold; display: flex; align-items: center;
     justify-content: center; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,.2); }
-  #keys, #sheetKeys { display: flex; max-width: 360px; margin: 8px auto; }
-  #keys button, #sheetKeys button { flex: 1; height: 70px; background: #fff; border: 1px solid #ccd;
-    border-radius: 0 0 8px 8px; font-size: 13px; color: #333; }
-  #keys button:active, #sheetKeys button:active { background: #ffd54f; }
-  #sheetKeys button.hint { background: #ffd54f; box-shadow: 0 0 0 3px #43a047 inset; }
-  #piano { display: flex; justify-content: center; gap: 2px; max-width: 400px; margin: 10px auto; }
-  #piano button { height: 90px; border: 1px solid #99a; border-radius: 0 0 6px 6px;
-    background: #fff; font-size: 11px; color: #333; }
-  #piano button:active { background: #ffd54f; }
+  /* Пианинная клавиатура */
+  .kbd { position: relative; max-width: 400px; margin: 8px auto; height: 96px; }
+  .kbd button { position: absolute; top: 0; border: 1px solid #99a; color: #333;
+    border-radius: 0 0 6px 6px; padding: 0; }
+  .kbd .white-key { height: 96px; background: #fff; font-size: 12px; z-index: 1; }
+  .kbd .black-key { height: 58px; background: #222; color: #fff; font-size: 9px; z-index: 2;
+    border-color: #000; }
+  .kbd .black-key.dim { background: #555; color: #bbb; }
+  .kbd button.hint { box-shadow: 0 0 0 4px #ffd54f; z-index: 3; }
+  .kbd button:active { background: #ffd54f; }
+  .kbd .black-key.dim:active { background: #555; }
   .msg { text-align: center; font-size: 17px; margin-top: 12px; color: #336; min-height: 22px; }
   .replay { display: block; margin: 12px auto 0; padding: 12px 28px; font-size: 17px;
     border: none; border-radius: 12px; background: #ffd54f; color: #333;
@@ -124,7 +126,7 @@
   <div class="song-row"><select id="fSong"></select></div>
   <div class="score">Очки: <span id="fScore">0</span> · Промахи: <span id="fMiss">0</span></div>
   <div id="fallArea"></div>
-  <div id="keys"></div>
+  <div id="keys" class="kbd"></div>
   <button class="mic-btn" data-game="fall" onclick="toggleMic('fall')">🎤 Сыграть на пианино</button>
 </div>
 
@@ -134,7 +136,7 @@
     <button class="sh-btn" data-sh="tree" onclick="toggleSharps('tree')">С диезами</button>
   </div>
   <div class="score">Уровень: <span id="tLevel">1</span></div>
-  <div id="piano"></div>
+  <div id="piano" class="kbd"></div>
   <div class="msg" id="tMsg">Слушай и повторяй!</div>
   <button class="replay" id="btnReplay" onclick="replaySeq()">Повторить мелодию</button>
   <button class="mic-btn" data-game="tree" onclick="toggleMic('tree')">🎤 Сыграть на пианино</button>
@@ -167,7 +169,7 @@
     <div class="line" style="top:102px"></div>
     <div class="hitline"></div>
   </div>
-  <div id="sheetKeys"></div>
+  <div id="sheetKeys" class="kbd"></div>
   <button class="mic-btn" data-game="sheet" onclick="toggleMic('sheet')">🎤 Сыграть на пианино</button>
 </div>
 
@@ -182,7 +184,9 @@ var NOTE_Y = [127, 115, 103, 91, 79, 67, 55];
 var FREQ = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88];
 var SHARP_FREQ = [277.18, 311.13, 369.99, 415.30, 466.16];
 var ALL_FREQ = FREQ.concat(SHARP_FREQ);
-var SHARP_POS = [0, 1, 3, 4, 5];
+// Чёрная клавиша стоит после белой с этим индексом: до♯ после До, ре♯ после Ре,
+// фа♯ после Фа (после Ми чёрной нет — как на пианино), и т.д.
+var SHARP_AFTER_WHITE = [0, 1, 3, 4, 5];
 
 /* Библиотека мелодий: только общественное достояние.
    0=До, 1=Ре, 2=Ми, 3=Фа, 4=Соль, 5=Ля, 6=Си */
@@ -203,6 +207,44 @@ var SONGS = [
 var audioCtx = null;
 var useCamerton = true;
 var gSharps = false, fSharps = false, tSharps = false;
+
+/* ===== Построитель пианинной клавиатуры ===== */
+function buildKeys(containerId, sharpsEnabled, showBlacks, onTap) {
+  var box = document.getElementById(containerId);
+  box.innerHTML = '';
+  var WK = 100 / 7; // ширина белой клавиши в процентах
+  for (var i = 0; i < 7; i++) {
+    var b = document.createElement('button');
+    b.className = 'white-key';
+    b.textContent = NOTES[i];
+    b.style.left = 'calc(' + WK + '% * ' + i + ' + 1px)';
+    b.style.width = 'calc(' + WK + '% - 2px)';
+    b.setAttribute('data-note', i);
+    b.onclick = (function(idx) { return function() { onTap(idx); }; })(i);
+    box.appendChild(b);
+  }
+  for (var j = 0; j < 5; j++) {
+    var bb = document.createElement('button');
+    bb.className = 'black-key' + (sharpsEnabled ? '' : ' dim');
+    bb.textContent = SHARP_NOTES[j];
+    var center = (SHARP_AFTER_WHITE[j] + 1) * WK; // граница между белыми клавишами
+    bb.style.left = 'calc(' + center + '% - ' + (WK * 0.31) + '%)';
+    bb.style.width = (WK * 0.62) + '%';
+    bb.setAttribute('data-note', 7 + j);
+    if (sharpsEnabled) {
+      bb.onclick = (function(idx) { return function() { onTap(idx); }; })(7 + j);
+    } else {
+      bb.disabled = true;
+    }
+    box.appendChild(bb);
+  }
+}
+// Горизонтальная позиция (в % ширины) для падающей ноты — совпадает с клавиатурой
+function laneLeftPct(n) {
+  if (n < 7) return (n + 0.5) * (100 / 7);
+  return (SHARP_AFTER_WHITE[n - 7] + 1) * (100 / 7);
+}
+/* ===== Конец построителя ===== */
 
 function toggleCam(isCam) {
   useCamerton = isCam;
@@ -230,6 +272,8 @@ function playNote(i) {
   try {
     if (audioCtx === null) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
+    // Пока звучит динамик, микрофон «спит» — чтобы не ловить собственный звук
+    micLastTime = Math.max(micLastTime, Date.now() + 1000);
     var t = audioCtx.currentTime;
     var f = ALL_FREQ[i];
     if (useCamerton) {
@@ -270,6 +314,7 @@ function playNote(i) {
 /* ===== Микрофонный режим ===== */
 var micStream = null, micActive = false, micAnalyser = null, micBuffer = null, micRafId = null;
 var activeGame = null, micPrevIdx = -1, micStable = 0, micLastTime = 0;
+var micHadGap = false; // между двумя засчитанными нотами должен быть перерыв в звуке
 
 function toggleMic(game) {
   if (micActive && activeGame === game) { stopMic(); return; }
@@ -291,6 +336,7 @@ function startMic(game) {
     micBuffer = new Float32Array(micAnalyser.fftSize);
     micActive = true; activeGame = game;
     micPrevIdx = -1; micStable = 0; micLastTime = 0;
+    micHadGap = true; // первая нота срабатывает сразу
     updateMicBtns();
     micLoop();
   }).catch(function(e) {
@@ -326,7 +372,11 @@ function micLoop() {
   var rms = 0;
   for (var i = 0; i < n; i++) rms += micBuffer[i] * micBuffer[i];
   rms = Math.sqrt(rms / n);
-  if (rms < 0.012) { micStable = 0; micPrevIdx = -1; return; }
+  if (rms < 0.012) {
+    micStable = 0; micPrevIdx = -1;
+    micHadGap = true; // звук стих — следующая нота может быть засчитана
+    return;
+  }
 
   var minLag = Math.floor(sr / 520);
   var maxLag = Math.min(Math.ceil(sr / 255), n - 1);
@@ -363,8 +413,10 @@ function micLoop() {
 
   var now = Date.now();
   if (now - micLastTime < 600) return;
+  if (!micHadGap) return;
 
   micLastTime = now;
+  micHadGap = false;
   micStable = 0;
   handleMicNote(best);
 }
@@ -376,10 +428,11 @@ function handleMicNote(i) {
     if (activeGame === 'tree' && !tSharps) return;
     if (activeGame === 'sheet') return;
   }
-  if (activeGame === 'guess') answerGuess(i);
-  else if (activeGame === 'fall') tapKey(i);
-  else if (activeGame === 'tree') tapTree(i);
-  else if (activeGame === 'sheet') tapSheet(i);
+  // fromMic = true: динамик эту ноту не дублирует, иначе микрофон услышит её снова
+  if (activeGame === 'guess') answerGuess(i, true);
+  else if (activeGame === 'fall') tapKey(i, true);
+  else if (activeGame === 'tree') tapTree(i, true);
+  else if (activeGame === 'sheet') tapSheet(i, true);
 }
 /* ===== Конец микрофонного блока ===== */
 
@@ -404,7 +457,7 @@ var gAnswer = 0, gScore = 0;
 function newGuess() {
   var range = gSharps ? 12 : 7;
   gAnswer = Math.floor(Math.random() * range);
-  var posIdx = (gAnswer >= 7) ? SHARP_POS[gAnswer - 7] : gAnswer;
+  var posIdx = (gAnswer >= 7) ? SHARP_AFTER_WHITE[gAnswer - 7] : gAnswer;
   var y = NOTE_Y[posIdx];
   document.getElementById('gHead').style.top = (y - 11) + 'px';
   document.getElementById('gStem').style.top = (y - 46) + 'px';
@@ -420,12 +473,12 @@ function newGuess() {
   for (var i = 0; i < range; i++) {
     var b = document.createElement('button');
     b.textContent = ALL_NOTES[i];
-    b.onclick = function(idx) { return function() { answerGuess(idx); }; }(i);
+    b.onclick = function(idx) { return function() { answerGuess(idx, false); }; }(i);
     btns.appendChild(b);
   }
 }
-function answerGuess(i) {
-  playNote(i);
+function answerGuess(i, fromMic) {
+  if (!fromMic) playNote(i);
   if (i === gAnswer) {
     gScore++;
     document.getElementById('gFeedback').textContent = 'Верно!';
@@ -440,16 +493,7 @@ function answerGuess(i) {
 /* Падающие ноты */
 var fallTimer = null, spawnTimer = null, fScore = 0, fMiss = 0, melodyIdx = 0, notePos = 0;
 function startFall() {
-  var keys = document.getElementById('keys');
-  keys.innerHTML = '';
-  var range = fSharps ? 12 : 7;
-  for (var i = 0; i < range; i++) {
-    var b = document.createElement('button');
-    b.textContent = ALL_NOTES[i];
-    b.style.borderTop = '4px solid ' + ALL_COLORS[i];
-    b.onclick = function(idx) { return function() { tapKey(idx); }; }(i);
-    keys.appendChild(b);
-  }
+  buildKeys('keys', fSharps, false, function(i) { tapKey(i, false); });
   var fSel = document.getElementById('fSong');
   if (fSel.options.length === 0) {
     SONGS.forEach(function(s, i) {
@@ -475,7 +519,6 @@ function stopFall() {
 function spawnNote() {
   var area = document.getElementById('fallArea');
   if (area.children.length > 6) return;
-  var range = fSharps ? 12 : 7;
   var mel = SONGS[melodyIdx].notes;
   var n;
   if (fSharps && Math.random() < 0.2) {
@@ -488,7 +531,8 @@ function spawnNote() {
   d.className = 'fall-note';
   d.textContent = ALL_NOTES[n];
   d.style.background = ALL_COLORS[n];
-  d.style.left = 'calc(' + ((n + 0.5) * (100 / range)) + '% - 22px)';
+  // Позиция совпадает с клавишей на пианинной клавиатуре
+  d.style.left = 'calc(' + laneLeftPct(n) + '% - 22px)';
   d.style.top = '-50px';
   d.setAttribute('data-note', n);
   area.appendChild(d);
@@ -508,7 +552,7 @@ function moveNotes() {
     }
   }
 }
-function tapKey(i) {
+function tapKey(i, fromMic) {
   var area = document.getElementById('fallArea');
   var target = null, best = -1;
   for (var k = 0; k < area.children.length; k++) {
@@ -519,7 +563,7 @@ function tapKey(i) {
     }
   }
   if (target) {
-    playNote(i);
+    if (!fromMic) playNote(i);
     target.remove();
     fScore++;
     document.getElementById('fScore').textContent = fScore;
@@ -532,21 +576,8 @@ var tSeq = [], tStep = 0, tLevel = 1, tPlaying = false;
 function startTree() {
   tLevel = 1; tSeq = []; tStep = 0;
   document.getElementById('tLevel').textContent = 1;
-  buildPiano();
+  buildKeys('piano', tSharps, false, function(i) { tapTree(i, false); });
   setTimeout(playSeq, 600);
-}
-function buildPiano() {
-  var box = document.getElementById('piano');
-  box.innerHTML = '';
-  var range = tSharps ? 12 : 7;
-  for (var i = 0; i < range; i++) {
-    var b = document.createElement('button');
-    b.textContent = ALL_NOTES[i];
-    b.style.borderTop = '4px solid ' + ALL_COLORS[i];
-    b.style.flex = '1';
-    b.onclick = function(idx) { return function() { tapTree(idx); }; }(i);
-    box.appendChild(b);
-  }
 }
 function replaySeq() {
   if (tPlaying || tSeq.length === 0) return;
@@ -574,11 +605,12 @@ function flash(i) {
   var btns = document.querySelectorAll('#piano button');
   if (!btns[i]) return;
   btns[i].style.background = '#ffd54f';
-  setTimeout(function() { btns[i].style.background = '#fff'; }, 350);
+  setTimeout(function() { btns[i].style.background = ''; }, 350);
 }
-function tapTree(i) {
+function tapTree(i, fromMic) {
   if (tPlaying) return;
-  flash(i); playNote(i);
+  flash(i);
+  if (!fromMic) playNote(i);
   if (i === tSeq[tStep]) {
     tStep++;
     if (tStep === tSeq.length) {
@@ -599,15 +631,8 @@ var sheetTimer = null, sSpawnTimer = null, sScore = 0, sMiss = 0, sMelodyIdx = 0
 var HIT_X = 72, sheetSpeed = 1.6, sLearn = false, hintKey = -1;
 var sHintMode = 'auto', sWaitFrames = 0, sWrongStreak = 0, sWaitEl = null;
 function startSheet() {
-  var keys = document.getElementById('sheetKeys');
-  keys.innerHTML = '';
-  NOTES.forEach(function(n, i) {
-    var b = document.createElement('button');
-    b.textContent = n;
-    b.style.borderTop = '4px solid ' + COLORS[i];
-    b.onclick = function() { tapSheet(i); };
-    keys.appendChild(b);
-  });
+  // Полная клавиатура для зрительной памяти: чёрные клавиши видны, но неактивны
+  buildKeys('sheetKeys', false, true, function(i) { tapSheet(i, false); });
   var sSel = document.getElementById('sSong');
   if (sSel.options.length === 0) {
     SONGS.forEach(function(s, i) {
@@ -683,12 +708,11 @@ function moveSheetNotes() {
   var area = document.getElementById('sheetArea');
   var front = frontNote();
   if (sLearn && front && parseFloat(front.el.style.left) <= HIT_X) {
-    // Нота доехала до линии: в обучающем режиме поток замирает
     if (front.el !== sWaitEl) { sWaitEl = front.el; sWaitFrames = 0; sWrongStreak = 0; }
     if (sHintMode === 'always') {
       setHint(Number(front.el.getAttribute('data-note')));
     } else if (sHintMode === 'auto') {
-      sWaitFrames++; // кадр = 30 мс, 150 кадров ≈ 4,5 секунды ожидания
+      sWaitFrames++;
       if (sWaitFrames >= 150 || sWrongStreak >= 2) {
         setHint(Number(front.el.getAttribute('data-note')));
       }
@@ -708,7 +732,8 @@ function moveSheetNotes() {
     }
   }
 }
-function tapSheet(i) {
+function tapSheet(i, fromMic) {
+  if (i >= 7) return; // чёрные клавиши в этой игре не участвуют
   var area = document.getElementById('sheetArea');
   var front = frontNote();
   var target = null, best = -1;
@@ -720,7 +745,7 @@ function tapSheet(i) {
     }
   }
   if (target) {
-    playNote(i);
+    if (!fromMic) playNote(i);
     setHint(-1);
     sWaitFrames = 0; sWrongStreak = 0; sWaitEl = null;
     target.style.background = '#43a047';
@@ -730,10 +755,9 @@ function tapSheet(i) {
     setProgress(sScore, 30);
     setTimeout(function() { target.remove(); }, 150);
   } else if (sLearn) {
-    // В обучающем режиме промах не считаем: нота вспыхивает красным
-    playNote(i);
+    if (!fromMic) playNote(i);
     if (front && front.left <= HIT_X + 36) {
-      sWrongStreak++; // две ошибки подряд — и авто-подсказка загорится
+      sWrongStreak++;
       if (sHintMode === 'auto' && sWrongStreak >= 2) {
         setHint(Number(front.el.getAttribute('data-note')));
       }
@@ -742,9 +766,9 @@ function tapSheet(i) {
       setTimeout(function() { front.el.style.background = orig; }, 300);
     }
   } else {
+    if (!fromMic) playNote(i);
     sMiss++;
     document.getElementById('sMiss').textContent = sMiss;
-    playNote(i);
   }
 }
 </script>
