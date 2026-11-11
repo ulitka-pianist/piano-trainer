@@ -22,8 +22,14 @@
   .clef-label { text-align: center; font-size: 14px; color: #556; margin-bottom: 4px; }
   .toggle-mode { text-align: center; margin-bottom: 10px; }
   .toggle-mode button { padding: 6px 12px; font-size: 13px; border: none;
-    border-radius: 6px; background: #e0e0e0; color: #333; }
+    border-radius: 6px; background: #e0e0e0; color: #333; margin: 0 3px; }
   .toggle-mode button.active { background: #4a90d9; color: #fff; }
+  .song-row { text-align: center; margin-bottom: 8px; }
+  .song-row select { padding: 8px 12px; font-size: 15px; border-radius: 8px;
+    border: 1px solid #ccd; background: #fff; margin: 0 4px; }
+  .song-row button { padding: 8px 12px; font-size: 14px; border: none;
+    border-radius: 8px; background: #e0e0e0; color: #333; }
+  .song-row button.active { background: #43a047; color: #fff; }
   .staff { position: relative; height: 150px; max-width: 340px; margin: 10px auto;
     background: #fff; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.08); }
   .line { position: absolute; left: 12px; right: 12px; height: 2px; background: #444; }
@@ -33,6 +39,8 @@
     left: calc(50% + 11px); }
   .ledger { position: absolute; height: 2px; background: #444; width: 48px;
     left: calc(50% - 24px); display: none; }
+  .sharp-sign { position: absolute; font-size: 22px; font-weight: bold; color: #222;
+    left: calc(50% - 42px); display: none; }
   .answers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
   .answers button { width: 45%; max-width: 150px; padding: 14px; font-size: 18px;
     border: none; border-radius: 12px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.12); }
@@ -42,19 +50,32 @@
   .fall-note { position: absolute; width: 44px; height: 44px; border-radius: 50%;
     color: #fff; font-weight: bold; display: flex; align-items: center;
     justify-content: center; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,.2); }
-  #keys { display: flex; max-width: 360px; margin: 8px auto; }
-  #keys button { flex: 1; height: 70px; background: #fff; border: 1px solid #ccd;
-    border-radius: 0 0 8px 8px; font-size: 14px; color: #333; }
-  #keys button:active { background: #ffd54f; }
-  #piano { display: flex; justify-content: center; gap: 4px; max-width: 400px; margin: 10px auto; }
-  #piano button { width: 13%; height: 90px; border: 1px solid #99a; border-radius: 0 0 6px 6px;
-    background: #fff; font-size: 12px; color: #333; }
+  #keys, #sheetKeys { display: flex; max-width: 360px; margin: 8px auto; }
+  #keys button, #sheetKeys button { flex: 1; height: 70px; background: #fff; border: 1px solid #ccd;
+    border-radius: 0 0 8px 8px; font-size: 13px; color: #333; }
+  #keys button:active, #sheetKeys button:active { background: #ffd54f; }
+  #sheetKeys button.hint { background: #ffd54f; box-shadow: 0 0 0 3px #43a047 inset; }
+  #piano { display: flex; justify-content: center; gap: 2px; max-width: 400px; margin: 10px auto; }
+  #piano button { height: 90px; border: 1px solid #99a; border-radius: 0 0 6px 6px;
+    background: #fff; font-size: 11px; color: #333; }
   #piano button:active { background: #ffd54f; }
   .msg { text-align: center; font-size: 17px; margin-top: 12px; color: #336; min-height: 22px; }
   .replay { display: block; margin: 12px auto 0; padding: 12px 28px; font-size: 17px;
     border: none; border-radius: 12px; background: #ffd54f; color: #333;
     box-shadow: 0 2px 6px rgba(0,0,0,.15); }
   .replay:disabled { opacity: .5; }
+  .mic-btn { display: block; margin: 14px auto 0; padding: 12px 24px; font-size: 16px;
+    border: none; border-radius: 12px; background: #fff; color: #333;
+    box-shadow: 0 2px 6px rgba(0,0,0,.12); }
+  .mic-btn.on { background: #43a047; color: #fff; }
+  #sheetArea { position: relative; height: 150px; max-width: 360px; margin: 10px auto;
+    overflow: hidden; background: #fff; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.08); }
+  #sheetArea .line { left: 0; right: 0; }
+  .hitline { position: absolute; left: 70px; top: 0; bottom: 0; width: 5px;
+    background: #43a047; border-radius: 3px; opacity: .8; }
+  .sheet-note { position: absolute; width: 34px; height: 34px; border-radius: 50%;
+    color: #fff; font-weight: bold; display: flex; align-items: center;
+    justify-content: center; font-size: 12px; box-shadow: 0 2px 4px rgba(0,0,0,.2); }
 </style>
 </head>
 <body>
@@ -67,6 +88,7 @@
   <button class="menu-btn" onclick="showScreen('guess')">Угадай ноту</button>
   <button class="menu-btn" onclick="showScreen('fall')">Падающие ноты</button>
   <button class="menu-btn" onclick="showScreen('tree')">Ёлочка (по нотам)</button>
+  <button class="menu-btn" onclick="showScreen('sheet')">Читаем с листа</button>
 </div>
 
 <div id="guess" class="screen">
@@ -74,6 +96,7 @@
   <div class="toggle-mode">
     <button class="cam-btn active" onclick="toggleCam(true)">Камертон</button>
     <button class="str-btn" onclick="toggleCam(false)">Струна</button>
+    <button class="sh-btn" data-sh="guess" onclick="toggleSharps('guess')">С диезами</button>
   </div>
   <div class="clef-label">Скрипичный ключ: 2-я линия снизу — Соль</div>
   <div class="staff">
@@ -83,42 +106,103 @@
     <div class="line" style="top:78px"></div>
     <div class="line" style="top:102px"></div>
     <div class="ledger" id="gLedger"></div>
+    <div class="sharp-sign" id="gSharp">♯</div>
     <div class="note-head" id="gHead"></div>
     <div class="note-stem" id="gStem"></div>
   </div>
   <div class="score">Очки: <span id="gScore">0</span></div>
   <div class="answers" id="gAnswers"></div>
   <div class="feedback" id="gFeedback"></div>
+  <button class="mic-btn" data-game="guess" onclick="toggleMic('guess')">🎤 Сыграть на пианино</button>
 </div>
 
 <div id="fall" class="screen">
   <button class="back" onclick="showScreen('menu')">Назад в меню</button>
+  <div class="toggle-mode">
+    <button class="sh-btn" data-sh="fall" onclick="toggleSharps('fall')">С диезами</button>
+  </div>
+  <div class="song-row"><select id="fSong"></select></div>
   <div class="score">Очки: <span id="fScore">0</span> · Промахи: <span id="fMiss">0</span></div>
   <div id="fallArea"></div>
   <div id="keys"></div>
+  <button class="mic-btn" data-game="fall" onclick="toggleMic('fall')">🎤 Сыграть на пианино</button>
 </div>
 
 <div id="tree" class="screen">
   <button class="back" onclick="showScreen('menu')">Назад в меню</button>
+  <div class="toggle-mode">
+    <button class="sh-btn" data-sh="tree" onclick="toggleSharps('tree')">С диезами</button>
+  </div>
   <div class="score">Уровень: <span id="tLevel">1</span></div>
   <div id="piano"></div>
   <div class="msg" id="tMsg">Слушай и повторяй!</div>
   <button class="replay" id="btnReplay" onclick="replaySeq()">Повторить мелодию</button>
+  <button class="mic-btn" data-game="tree" onclick="toggleMic('tree')">🎤 Сыграть на пианино</button>
+</div>
+
+<div id="sheet" class="screen">
+  <button class="back" onclick="showScreen('menu')">Назад в меню</button>
+  <div class="song-row">
+    <select id="sSong"></select>
+    <select id="sSpeed">
+      <option value="0.9">🐢 Очень медленно</option>
+      <option value="1.2">Медленно</option>
+      <option value="1.6" selected>Обычно</option>
+      <option value="2.2">Оригинальный темп</option>
+    </select>
+    <select id="sHint">
+      <option value="auto" selected>💡 Подсказка: авто</option>
+      <option value="always">💡 Подсказка: всегда</option>
+      <option value="never">💡 Подсказка: никогда</option>
+    </select>
+    <button id="sLearnBtn" onclick="toggleLearn()">🎓 Режим обучения: выкл</button>
+  </div>
+  <div class="score">Очки: <span id="sScore">0</span> · Промахи: <span id="sMiss">0</span></div>
+  <div class="clef-label">Ноты едут к зелёной линии — успей сыграть вовремя!</div>
+  <div id="sheetArea">
+    <div class="line" style="top:6px"></div>
+    <div class="line" style="top:30px"></div>
+    <div class="line" style="top:54px"></div>
+    <div class="line" style="top:78px"></div>
+    <div class="line" style="top:102px"></div>
+    <div class="hitline"></div>
+  </div>
+  <div id="sheetKeys"></div>
+  <button class="mic-btn" data-game="sheet" onclick="toggleMic('sheet')">🎤 Сыграть на пианино</button>
 </div>
 
 <script>
 var NOTES = ['До', 'Ре', 'Ми', 'Фа', 'Соль', 'Ля', 'Си'];
+var SHARP_NOTES = ['До♯', 'Ре♯', 'Фа♯', 'Соль♯', 'Ля♯'];
+var ALL_NOTES = NOTES.concat(SHARP_NOTES); // индексы 0-6 — белые, 7-11 — чёрные
 var COLORS = ['#e53935', '#fb8c00', '#fdd835', '#43a047', '#1e88e5', '#8e24aa', '#5d4037'];
+var SHARP_COLORS = ['#795548', '#5c6bc0', '#00897b', '#8e24aa', '#546e7a'];
+var ALL_COLORS = COLORS.concat(SHARP_COLORS);
 var NOTE_Y = [127, 115, 103, 91, 79, 67, 55];
 var FREQ = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88];
-var MELODIES = [
-  [4, 4, 4, 2, 5, 5, 4, 2, 4, 4, 4, 2, 5, 5, 4],
-  [0, 2, 0, 2, 0, 2, 2, 2, 0, 2, 0, 2, 0, 2, 2],
-  [3, 4, 5, 5, 3, 4, 5, 5, 3, 4, 5, 5, 3, 4, 5]
+var SHARP_FREQ = [277.18, 311.13, 369.99, 415.30, 466.16];
+var ALL_FREQ = FREQ.concat(SHARP_FREQ);
+var SHARP_POS = [0, 1, 3, 4, 5];
+
+/* Библиотека мелодий: только общественное достояние.
+   0=До, 1=Ре, 2=Ми, 3=Фа, 4=Соль, 5=Ля, 6=Си */
+var SONGS = [
+  { name: 'Ода к радости',          notes: [2,2,3,4,4,3,2,1,0,0,1,2,2,1,1] },
+  { name: 'В лесу родилась ёлочка', notes: [2,2,2,0,2,0,4,4,5,4,3,2,1,0] },
+  { name: 'Во поле берёза стояла',  notes: [2,0,1,2,3,3,2,1,3,2,1,0,6,0] },
+  { name: 'Калинка (припев)',       notes: [1,1,2,3,3,3,2,1,2,3,4,4,4,3,2,1] },
+  { name: 'Серенький козлик',       notes: [4,0,0,0,0,0,6,0,1,0] },
+  { name: 'В пещере горного короля',notes: [6,0,6,0,6,0,1,6,0,1,2,1] },
+  { name: 'Гамма до мажор',         notes: [0,1,2,3,4,5,6,5,4,3,2,1,0] },
+  { name: 'Мерцай, звёздочка',      notes: [0,0,4,4,5,5,4,3,3,2,2,1,1,0] },
+  { name: 'Коробейники',            notes: [2,6,0,1,0,6,5,5,0,2,1,0,6,6,0,1,2,0,5,5] },
+  { name: 'Чижик-пыжик',            notes: [4,2,2,4,2,2,4,5,6,6,5,4,2] },
+  { name: 'Канон Пахельбеля',       notes: [4,1,2,6,5,4,6,1] }
 ];
 
 var audioCtx = null;
 var useCamerton = true;
+var gSharps = false, fSharps = false, tSharps = false;
 
 function toggleCam(isCam) {
   useCamerton = isCam;
@@ -128,12 +212,26 @@ function toggleCam(isCam) {
   strBtns.forEach(function(b) { b.classList.toggle('active', !isCam); });
 }
 
+function toggleSharps(game) {
+  if (game === 'guess') { gSharps = !gSharps; newGuess(); }
+  if (game === 'fall') { fSharps = !fSharps; startFall(); }
+  if (game === 'tree') { tSharps = !tSharps; startTree(); }
+  updateSharpsBtns();
+}
+function updateSharpsBtns() {
+  document.querySelectorAll('.sh-btn').forEach(function(b) {
+    var g = b.getAttribute('data-sh');
+    var on = (g === 'guess' && gSharps) || (g === 'fall' && fSharps) || (g === 'tree' && tSharps);
+    b.classList.toggle('active', on);
+  });
+}
+
 function playNote(i) {
   try {
     if (audioCtx === null) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
     var t = audioCtx.currentTime;
-    var f = FREQ[i];
+    var f = ALL_FREQ[i];
     if (useCamerton) {
       var o = audioCtx.createOscillator();
       var g = audioCtx.createGain();
@@ -169,13 +267,132 @@ function playNote(i) {
   } catch (e) {}
 }
 
+/* ===== Микрофонный режим ===== */
+var micStream = null, micActive = false, micAnalyser = null, micBuffer = null, micRafId = null;
+var activeGame = null, micPrevIdx = -1, micStable = 0, micLastTime = 0;
+
+function toggleMic(game) {
+  if (micActive && activeGame === game) { stopMic(); return; }
+  startMic(game);
+}
+
+function startMic(game) {
+  if (micActive) stopMic();
+  navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+  }).then(function(stream) {
+    if (audioCtx === null) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    micStream = stream;
+    var src = audioCtx.createMediaStreamSource(stream);
+    micAnalyser = audioCtx.createAnalyser();
+    micAnalyser.fftSize = 2048;
+    src.connect(micAnalyser);
+    micBuffer = new Float32Array(micAnalyser.fftSize);
+    micActive = true; activeGame = game;
+    micPrevIdx = -1; micStable = 0; micLastTime = 0;
+    updateMicBtns();
+    micLoop();
+  }).catch(function(e) {
+    alert('Не удалось включить микрофон: ' + e.message);
+  });
+}
+
+function stopMic() {
+  micActive = false; activeGame = null;
+  if (micRafId !== null) cancelAnimationFrame(micRafId);
+  micRafId = null;
+  if (micStream !== null) micStream.getTracks().forEach(function(t) { t.stop(); });
+  micStream = null;
+  updateMicBtns();
+}
+
+function updateMicBtns() {
+  document.querySelectorAll('.mic-btn').forEach(function(b) {
+    var on = micActive && b.getAttribute('data-game') === activeGame;
+    b.classList.toggle('on', on);
+    b.textContent = on ? '🎤 Слушаю... (нажми, чтобы выключить)' : '🎤 Сыграть на пианино';
+  });
+}
+
+function micLoop() {
+  if (!micActive) return;
+  micRafId = requestAnimationFrame(micLoop);
+
+  micAnalyser.getFloatTimeDomainData(micBuffer);
+  var sr = audioCtx.sampleRate;
+  var n = micBuffer.length;
+
+  var rms = 0;
+  for (var i = 0; i < n; i++) rms += micBuffer[i] * micBuffer[i];
+  rms = Math.sqrt(rms / n);
+  if (rms < 0.012) { micStable = 0; micPrevIdx = -1; return; }
+
+  var minLag = Math.floor(sr / 520);
+  var maxLag = Math.min(Math.ceil(sr / 255), n - 1);
+  if (maxLag <= minLag) return;
+
+  var corr = new Float32Array(maxLag + 2);
+  var bestLag = -1, bestCorr = 0;
+  for (var lag = minLag; lag <= maxLag; lag++) {
+    var c = 0, n1 = 0, n2 = 0;
+    for (var j = 0; j < n - lag; j++) {
+      c += micBuffer[j] * micBuffer[j + lag];
+      n1 += micBuffer[j] * micBuffer[j];
+      n2 += micBuffer[j + lag] * micBuffer[j + lag];
+    }
+    corr[lag] = c / Math.sqrt(n1 * n2 || 1);
+    if (corr[lag] > bestCorr) { bestCorr = corr[lag]; bestLag = lag; }
+  }
+  if (bestLag < 0 || bestCorr < 0.85) { micStable = 0; micPrevIdx = -1; return; }
+
+  var y0 = corr[bestLag - 1], y1 = corr[bestLag], y2 = corr[bestLag + 1];
+  var shift = (y0 - y2) / (2 * (y0 - 2 * y1 + y2) || 1);
+  if (isNaN(shift)) shift = 0;
+  var freq = sr / (bestLag + shift);
+
+  var best = 0, bd = 1e9;
+  for (var k = 0; k < 12; k++) {
+    var d = Math.abs(Math.log(freq / ALL_FREQ[k]));
+    if (d < bd) { bd = d; best = k; }
+  }
+  if (bd > Math.log(1.03)) { micStable = 0; micPrevIdx = -1; return; }
+
+  if (best === micPrevIdx) micStable++; else { micPrevIdx = best; micStable = 0; return; }
+  if (micStable < 2) return;
+
+  var now = Date.now();
+  if (now - micLastTime < 600) return;
+
+  micLastTime = now;
+  micStable = 0;
+  handleMicNote(best);
+}
+
+function handleMicNote(i) {
+  if (i >= 7) {
+    if (activeGame === 'guess' && !gSharps) return;
+    if (activeGame === 'fall' && !fSharps) return;
+    if (activeGame === 'tree' && !tSharps) return;
+    if (activeGame === 'sheet') return;
+  }
+  if (activeGame === 'guess') answerGuess(i);
+  else if (activeGame === 'fall') tapKey(i);
+  else if (activeGame === 'tree') tapTree(i);
+  else if (activeGame === 'sheet') tapSheet(i);
+}
+/* ===== Конец микрофонного блока ===== */
+
 function showScreen(id) {
+  stopMic();
   document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
   document.getElementById(id).classList.add('active');
   stopFall();
+  stopSheet();
   if (id === 'guess') newGuess();
   if (id === 'fall') startFall();
   if (id === 'tree') startTree();
+  if (id === 'sheet') startSheet();
 }
 
 function setProgress(score, max) {
@@ -185,22 +402,27 @@ function setProgress(score, max) {
 /* Угадай ноту */
 var gAnswer = 0, gScore = 0;
 function newGuess() {
-  gAnswer = Math.floor(Math.random() * 7);
-  var y = NOTE_Y[gAnswer];
+  var range = gSharps ? 12 : 7;
+  gAnswer = Math.floor(Math.random() * range);
+  var posIdx = (gAnswer >= 7) ? SHARP_POS[gAnswer - 7] : gAnswer;
+  var y = NOTE_Y[posIdx];
   document.getElementById('gHead').style.top = (y - 11) + 'px';
   document.getElementById('gStem').style.top = (y - 46) + 'px';
   var ledger = document.getElementById('gLedger');
-  ledger.style.display = (gAnswer === 0) ? 'block' : 'none';
+  ledger.style.display = (posIdx === 0) ? 'block' : 'none';
   ledger.style.top = (y - 1) + 'px';
+  var sharp = document.getElementById('gSharp');
+  sharp.style.display = (gAnswer >= 7) ? 'block' : 'none';
+  sharp.style.top = (y - 12) + 'px';
   document.getElementById('gFeedback').textContent = '';
   var btns = document.getElementById('gAnswers');
   btns.innerHTML = '';
-  NOTES.forEach(function(n, i) {
+  for (var i = 0; i < range; i++) {
     var b = document.createElement('button');
-    b.textContent = n;
-    b.onclick = function() { answerGuess(i); };
+    b.textContent = ALL_NOTES[i];
+    b.onclick = function(idx) { return function() { answerGuess(idx); }; }(i);
     btns.appendChild(b);
-  });
+  }
 }
 function answerGuess(i) {
   playNote(i);
@@ -208,7 +430,7 @@ function answerGuess(i) {
     gScore++;
     document.getElementById('gFeedback').textContent = 'Верно!';
   } else {
-    document.getElementById('gFeedback').textContent = 'Это ' + NOTES[gAnswer];
+    document.getElementById('gFeedback').textContent = 'Это ' + ALL_NOTES[gAnswer];
   }
   document.getElementById('gScore').textContent = gScore;
   setProgress(gScore, 20);
@@ -220,15 +442,25 @@ var fallTimer = null, spawnTimer = null, fScore = 0, fMiss = 0, melodyIdx = 0, n
 function startFall() {
   var keys = document.getElementById('keys');
   keys.innerHTML = '';
-  NOTES.forEach(function(n, i) {
+  var range = fSharps ? 12 : 7;
+  for (var i = 0; i < range; i++) {
     var b = document.createElement('button');
-    b.textContent = n;
-    b.style.borderTop = '4px solid ' + COLORS[i];
-    b.onclick = function() { tapKey(i); };
+    b.textContent = ALL_NOTES[i];
+    b.style.borderTop = '4px solid ' + ALL_COLORS[i];
+    b.onclick = function(idx) { return function() { tapKey(idx); }; }(i);
     keys.appendChild(b);
-  });
+  }
+  var fSel = document.getElementById('fSong');
+  if (fSel.options.length === 0) {
+    SONGS.forEach(function(s, i) {
+      var o = document.createElement('option');
+      o.value = i; o.textContent = s.name;
+      fSel.appendChild(o);
+    });
+    fSel.onchange = function() { startFall(); };
+  }
+  melodyIdx = Number(fSel.value) || 0;
   fScore = 0; fMiss = 0; notePos = 0;
-  melodyIdx = Math.floor(Math.random() * MELODIES.length);
   document.getElementById('fScore').textContent = 0;
   document.getElementById('fMiss').textContent = 0;
   document.getElementById('fallArea').innerHTML = '';
@@ -243,13 +475,20 @@ function stopFall() {
 function spawnNote() {
   var area = document.getElementById('fallArea');
   if (area.children.length > 6) return;
-  var n = MELODIES[melodyIdx][notePos % MELODIES[melodyIdx].length];
+  var range = fSharps ? 12 : 7;
+  var mel = SONGS[melodyIdx].notes;
+  var n;
+  if (fSharps && Math.random() < 0.2) {
+    n = 7 + Math.floor(Math.random() * 5);
+  } else {
+    n = mel[notePos % mel.length];
+  }
   notePos++;
   var d = document.createElement('div');
   d.className = 'fall-note';
-  d.textContent = NOTES[n];
-  d.style.background = COLORS[n];
-  d.style.left = ((n + 0.5) * 14.28 - 6.1) + '%';
+  d.textContent = ALL_NOTES[n];
+  d.style.background = ALL_COLORS[n];
+  d.style.left = 'calc(' + ((n + 0.5) * (100 / range)) + '% - 22px)';
   d.style.top = '-50px';
   d.setAttribute('data-note', n);
   area.appendChild(d);
@@ -299,13 +538,15 @@ function startTree() {
 function buildPiano() {
   var box = document.getElementById('piano');
   box.innerHTML = '';
-  NOTES.forEach(function(n, i) {
+  var range = tSharps ? 12 : 7;
+  for (var i = 0; i < range; i++) {
     var b = document.createElement('button');
-    b.textContent = n;
-    b.style.borderTop = '4px solid ' + COLORS[i];
-    b.onclick = function() { tapTree(i); };
+    b.textContent = ALL_NOTES[i];
+    b.style.borderTop = '4px solid ' + ALL_COLORS[i];
+    b.style.flex = '1';
+    b.onclick = function(idx) { return function() { tapTree(idx); }; }(i);
     box.appendChild(b);
-  });
+  }
 }
 function replaySeq() {
   if (tPlaying || tSeq.length === 0) return;
@@ -316,7 +557,7 @@ function playSeq() {
 }
 function playSequence(addNew) {
   tPlaying = true;
-  if (addNew) tSeq.push(Math.floor(Math.random() * 7));
+  if (addNew) tSeq.push(Math.floor(Math.random() * (tSharps ? 12 : 7)));
   tStep = 0;
   document.getElementById('tMsg').textContent = addNew ? 'Слушай...' : 'Слушай ещё раз...';
   document.getElementById('btnReplay').disabled = true;
@@ -331,6 +572,7 @@ function playSequence(addNew) {
 }
 function flash(i) {
   var btns = document.querySelectorAll('#piano button');
+  if (!btns[i]) return;
   btns[i].style.background = '#ffd54f';
   setTimeout(function() { btns[i].style.background = '#fff'; }, 350);
 }
@@ -349,6 +591,160 @@ function tapTree(i) {
   } else {
     tStep = 0;
     document.getElementById('tMsg').textContent = 'Ничего! Нажми «Повторить» и попробуй снова';
+  }
+}
+
+/* Читаем с листа */
+var sheetTimer = null, sSpawnTimer = null, sScore = 0, sMiss = 0, sMelodyIdx = 0, sPos = 0;
+var HIT_X = 72, sheetSpeed = 1.6, sLearn = false, hintKey = -1;
+var sHintMode = 'auto', sWaitFrames = 0, sWrongStreak = 0, sWaitEl = null;
+function startSheet() {
+  var keys = document.getElementById('sheetKeys');
+  keys.innerHTML = '';
+  NOTES.forEach(function(n, i) {
+    var b = document.createElement('button');
+    b.textContent = n;
+    b.style.borderTop = '4px solid ' + COLORS[i];
+    b.onclick = function() { tapSheet(i); };
+    keys.appendChild(b);
+  });
+  var sSel = document.getElementById('sSong');
+  if (sSel.options.length === 0) {
+    SONGS.forEach(function(s, i) {
+      var o = document.createElement('option');
+      o.value = i; o.textContent = s.name;
+      sSel.appendChild(o);
+    });
+    sSel.onchange = function() { startSheet(); };
+  }
+  var hSel = document.getElementById('sHint');
+  if (!hSel.onchange) hSel.onchange = function() { startSheet(); };
+  sMelodyIdx = Number(sSel.value) || 0;
+  sheetSpeed = parseFloat(document.getElementById('sSpeed').value) || 1.6;
+  sHintMode = hSel.value || 'auto';
+  sScore = 0; sMiss = 0; sPos = 0; hintKey = -1;
+  sWaitFrames = 0; sWrongStreak = 0; sWaitEl = null;
+  document.getElementById('sScore').textContent = 0;
+  document.getElementById('sMiss').textContent = 0;
+  document.getElementById('sheetArea').innerHTML =
+    '<div class="line" style="top:6px"></div><div class="line" style="top:30px"></div>' +
+    '<div class="line" style="top:54px"></div><div class="line" style="top:78px"></div>' +
+    '<div class="line" style="top:102px"></div><div class="hitline"></div>';
+  sSpawnTimer = setInterval(spawnSheetNote, 1000);
+  sheetTimer = setInterval(moveSheetNotes, 30);
+}
+function stopSheet() {
+  if (sheetTimer !== null) clearInterval(sheetTimer);
+  if (sSpawnTimer !== null) clearInterval(sSpawnTimer);
+  sheetTimer = null; sSpawnTimer = null;
+}
+function toggleLearn() {
+  sLearn = !sLearn;
+  var btn = document.getElementById('sLearnBtn');
+  btn.classList.toggle('active', sLearn);
+  btn.textContent = sLearn ? '🎓 Режим обучения: вкл' : '🎓 Режим обучения: выкл';
+  if (!sLearn) { setHint(-1); sWaitFrames = 0; sWrongStreak = 0; sWaitEl = null; }
+}
+function setHint(idx) {
+  hintKey = idx;
+  var btns = document.querySelectorAll('#sheetKeys button');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle('hint', i === hintKey);
+  }
+}
+function frontNote() {
+  var area = document.getElementById('sheetArea');
+  var front = null, fl = 1e9;
+  for (var k = 0; k < area.children.length; k++) {
+    var d = area.children[k];
+    if (d.classList.contains('sheet-note')) {
+      var l = parseFloat(d.style.left);
+      if (l < fl) { fl = l; front = d; }
+    }
+  }
+  return front ? { el: front, left: fl } : null;
+}
+function spawnSheetNote() {
+  var area = document.getElementById('sheetArea');
+  if (area.children.length > 8) return;
+  var mel = SONGS[sMelodyIdx].notes;
+  var n = mel[sPos % mel.length];
+  sPos++;
+  var d = document.createElement('div');
+  d.className = 'sheet-note';
+  d.textContent = NOTES[n];
+  d.style.background = COLORS[n];
+  d.style.left = area.clientWidth + 'px';
+  d.style.top = (NOTE_Y[n] - 17) + 'px';
+  d.setAttribute('data-note', n);
+  area.appendChild(d);
+}
+function moveSheetNotes() {
+  var area = document.getElementById('sheetArea');
+  var front = frontNote();
+  if (sLearn && front && parseFloat(front.el.style.left) <= HIT_X) {
+    // Нота доехала до линии: в обучающем режиме поток замирает
+    if (front.el !== sWaitEl) { sWaitEl = front.el; sWaitFrames = 0; sWrongStreak = 0; }
+    if (sHintMode === 'always') {
+      setHint(Number(front.el.getAttribute('data-note')));
+    } else if (sHintMode === 'auto') {
+      sWaitFrames++; // кадр = 30 мс, 150 кадров ≈ 4,5 секунды ожидания
+      if (sWaitFrames >= 150 || sWrongStreak >= 2) {
+        setHint(Number(front.el.getAttribute('data-note')));
+      }
+    }
+    return;
+  }
+  for (var k = area.children.length - 1; k >= 0; k--) {
+    var d = area.children[k];
+    if (!d.classList.contains('sheet-note')) continue;
+    var left = parseFloat(d.style.left) - sheetSpeed;
+    d.style.left = left + 'px';
+    if (left < HIT_X - 36) {
+      d.remove();
+      sMiss++;
+      document.getElementById('sMiss').textContent = sMiss;
+      setProgress(sScore, 30);
+    }
+  }
+}
+function tapSheet(i) {
+  var area = document.getElementById('sheetArea');
+  var front = frontNote();
+  var target = null, best = -1;
+  for (var k = 0; k < area.children.length; k++) {
+    var d = area.children[k];
+    if (d.classList.contains('sheet-note') && Number(d.getAttribute('data-note')) === i) {
+      var l = parseFloat(d.style.left);
+      if (l >= HIT_X - 36 && l <= HIT_X + 36 && l > best) { best = l; target = d; }
+    }
+  }
+  if (target) {
+    playNote(i);
+    setHint(-1);
+    sWaitFrames = 0; sWrongStreak = 0; sWaitEl = null;
+    target.style.background = '#43a047';
+    target.textContent = '✓';
+    sScore++;
+    document.getElementById('sScore').textContent = sScore;
+    setProgress(sScore, 30);
+    setTimeout(function() { target.remove(); }, 150);
+  } else if (sLearn) {
+    // В обучающем режиме промах не считаем: нота вспыхивает красным
+    playNote(i);
+    if (front && front.left <= HIT_X + 36) {
+      sWrongStreak++; // две ошибки подряд — и авто-подсказка загорится
+      if (sHintMode === 'auto' && sWrongStreak >= 2) {
+        setHint(Number(front.el.getAttribute('data-note')));
+      }
+      front.el.style.background = '#e53935';
+      var orig = COLORS[Number(front.el.getAttribute('data-note'))];
+      setTimeout(function() { front.el.style.background = orig; }, 300);
+    }
+  } else {
+    sMiss++;
+    document.getElementById('sMiss').textContent = sMiss;
+    playNote(i);
   }
 }
 </script>
