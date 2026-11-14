@@ -6,7 +6,7 @@
 <title>Музыкальная улитка</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: sans-serif; background: #f0f4fa; min-height: 100vh; }
+  body { font-family: sans-serif; background: #f0f4fa; min-height: 100vh; padding-bottom: 100px; }
   header { background: #4a90d9; color: #fff; padding: 14px; text-align: center; }
   header h1 { font-size: 24px; margin-bottom: 8px; }
   #progress { height: 10px; background: #9cc3ec; border-radius: 5px; }
@@ -78,6 +78,19 @@
   .sheet-note { position: absolute; width: 34px; height: 34px; border-radius: 50%;
     color: #fff; font-weight: bold; display: flex; align-items: center;
     justify-content: center; font-size: 12px; box-shadow: 0 2px 4px rgba(0,0,0,.2); }
+  /* ===== Улитка-помощница ===== */
+  #snailPal { position: fixed; right: 12px; bottom: 12px; z-index: 50;
+    display: flex; align-items: flex-end; gap: 8px; max-width: calc(100vw - 24px); }
+  #snailBubble { background: #fff; border-radius: 14px 14px 4px 14px; padding: 10px 12px;
+    max-width: 210px; font-size: 14px; color: #336; box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    display: none; opacity: 0; transition: opacity .4s; }
+  #snailBubble.show { display: block; opacity: 1; }
+  #snailBody { cursor: pointer; flex-shrink: 0; }
+  #snailBody svg { display: block; animation: snailSway 3s ease-in-out infinite; transform-origin: 50% 90%; }
+  @keyframes snailSway {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(-4deg); }
+  }
 </style>
 </head>
 <body>
@@ -178,6 +191,11 @@
   <button class="mic-btn" data-game="sheet" onclick="toggleMic('sheet')">🎤 Сыграть на пианино</button>
 </div>
 
+<div id="snailPal">
+  <div id="snailBubble"></div>
+  <div id="snailBody"></div>
+</div>
+
 <script>
 var NOTES = ['До', 'Ре', 'Ми', 'Фа', 'Соль', 'Ля', 'Си'];
 var SHARP_NOTES = ['До♯', 'Ре♯', 'Фа♯', 'Соль♯', 'Ля♯'];
@@ -228,6 +246,68 @@ var ALL_PIECES = EXERCISES.concat(SONGS);
 var audioCtx = null;
 var useCamerton = true;
 var gSharps = false, fSharps = false, tSharps = false;
+
+/* ===== Улитка-помощница ===== */
+var SNAIL_HI = [
+  'Привет! Я Улитка, твой учитель музыки. Я никогда не тороплюсь — и тебе не нужно!',
+  'Рада тебя видеть! С чего начнём сегодня?',
+  'Та-дам! Я тут. Готов к уроку?',
+  'Знаешь, что я люблю больше музыки? Учить её с тобой!'
+];
+var SNAIL_MODE = {
+  guess: 'Посмотри на нотный стан, а потом найди такую же ноту на кнопках внизу.',
+  fall: 'Ловим нотки у нижней зоны — как яблоки с ветки!',
+  tree: 'Я сыграю мелодию, а ты повтори её по нотам. Слушай внимательно!',
+  sheet: 'Ноты едут к зелёной линии. Сыграй вовремя — и мелодия оживёт!'
+};
+var SNAIL_PRAISE = [
+  'Вот это да! Я даже ракушкой горжусь!',
+  'Браво! Моё улиточное сердце тает.',
+  'Молодец! Такое под силу только очень старательному музыканту.',
+  'Ух ты! Медленно и верно — вот твой секрет.'
+];
+var SNAIL_GENTLE = [
+  'Ничего страшного, я ведь тоже медленная. Попробуем ещё разок?',
+  'Ошибки — это как лесенка: каждая ступенька ведёт вверх.',
+  'Не торопись, у нас с тобой целая вечность.'
+];
+var SNAIL_IDLE = [
+  'Нажми на меня, если захочешь поболтать!',
+  'Музыка не любит спешки. И я тоже.',
+  'Сегодня отличный день, чтобы выучить одну новую ноту.'
+];
+
+function snailSVG() {
+  return '<svg viewBox="0 0 100 84" width="72" height="60">' +
+    '<line x1="40" y1="40" x2="36" y2="22" stroke="#7cb26a" stroke-width="4" stroke-linecap="round"/>' +
+    '<line x1="54" y1="40" x2="58" y2="22" stroke="#7cb26a" stroke-width="4" stroke-linecap="round"/>' +
+    '<circle cx="35" cy="18" r="5.5" fill="#fff" stroke="#4a4a4a" stroke-width="1.5"/>' +
+    '<circle cx="59" cy="18" r="5.5" fill="#fff" stroke="#4a4a4a" stroke-width="1.5"/>' +
+    '<circle cx="35" cy="18" r="2.2" fill="#333"/>' +
+    '<circle cx="59" cy="18" r="2.2" fill="#333"/>' +
+    '<path d="M18 80 Q20 46 44 42 Q64 40 70 58 L72 80 Z" fill="#9fd483"/>' +
+    '<circle cx="70" cy="58" r="22" fill="#d7a86e" stroke="#8e5a3c" stroke-width="3"/>' +
+    '<circle cx="70" cy="58" r="13" fill="none" stroke="#8e5a3c" stroke-width="3"/>' +
+    '<circle cx="70" cy="58" r="5.5" fill="#8e5a3c"/>' +
+    '<path d="M40 52 Q45 57 50 52" fill="none" stroke="#3f6b33" stroke-width="2.5" stroke-linecap="round"/>' +
+    '</svg>';
+}
+var snailTimer = null;
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function snailSay(text) {
+  var b = document.getElementById('snailBubble');
+  b.textContent = text;
+  b.classList.add('show');
+  if (snailTimer !== null) clearTimeout(snailTimer);
+  snailTimer = setTimeout(function() { b.classList.remove('show'); }, 6000);
+}
+function snailInit() {
+  document.getElementById('snailBody').innerHTML = snailSVG();
+  document.getElementById('snailBody').onclick = function() {
+    snailSay(pick(SNAIL_IDLE));
+  };
+  snailSay(pick(SNAIL_HI));
+}
 
 /* ===== Построитель пианинной клавиатуры ===== */
 function buildKeys(containerId, sharpsEnabled, showBlacks, onTap) {
@@ -466,10 +546,11 @@ function showScreen(id) {
   // «Ёлочка» тоже останавливается — мелодия не доигрывает в фоне
   if (tTimers.length) { tTimers.forEach(clearTimeout); tTimers = []; }
   tPlaying = false;
-  if (id === 'guess') startGuessLesson();
-  if (id === 'fall') startFall();
-  if (id === 'tree') startTree();
-  if (id === 'sheet') startSheet();
+  if (id === 'guess') { startGuessLesson(); snailSay(SNAIL_MODE.guess); }
+  if (id === 'fall') { startFall(); snailSay(SNAIL_MODE.fall); }
+  if (id === 'tree') { startTree(); snailSay(SNAIL_MODE.tree); }
+  if (id === 'sheet') { startSheet(); snailSay(SNAIL_MODE.sheet); }
+  if (id === 'menu') snailSay(pick(SNAIL_HI));
 }
 
 function setProgress(score, max) {
@@ -535,7 +616,13 @@ function endGuess() {
   gLocked = true;
   var pct = Math.round(gFirst / G_LESSON * 100);
   var msg = 'Урок окончен! С первой попытки: ' + gFirst + ' из ' + G_LESSON + ' (' + pct + '%). ';
-  msg += pct >= 80 ? 'Улитка очень довольна тобой!' : 'Улитка говорит: ноты не торопятся, попробуем ещё раз.';
+  if (pct >= 80) {
+    msg += 'Улитка очень довольна тобой!';
+    snailSay(pick(SNAIL_PRAISE));
+  } else {
+    msg += 'Улитка говорит: ноты не торопятся, попробуем ещё раз.';
+    snailSay(pick(SNAIL_GENTLE));
+  }
   document.getElementById('gFeedback').textContent = msg;
   var btns = document.getElementById('gAnswers');
   btns.innerHTML = '';
@@ -676,17 +763,20 @@ function endFall() {
   if (fMissedNotes.length === 0) {
     if (fReturnPiece) {
       msg = 'Все ошибки исправлены! Теперь мелодию целиком?';
+      snailSay('Ошибок больше нет! Я в тебя верила.');
       addBtn('Теперь целиком', function() {
         var p = fReturnPiece; fReturnPiece = null; startFall(p);
       });
     } else {
       msg = 'Урок окончен: ' + fTotal + ' из ' + fTotal + ' нот, без единой ошибки! Улитка аплодирует!';
+      snailSay(pick(SNAIL_PRAISE));
       addBtn('Ещё раз', function() { startFall(fPiece); });
     }
   } else {
     var names = uniqNotes(fMissedNotes).map(function(n) { return ALL_NOTES[n]; }).join(', ');
     msg = 'Поймано ' + fScore + ' из ' + fTotal + ' нот (' + pct + '%). ';
     msg += 'Труднее всего дались: ' + names + '. Потренируем их?';
+    snailSay(pct >= 80 ? pick(SNAIL_PRAISE) : pick(SNAIL_GENTLE));
     addBtn('Потренировать ошибки', function() {
       var miss = uniqNotes(fMissedNotes);
       if (!fReturnPiece) fReturnPiece = fPiece;
@@ -766,6 +856,7 @@ function endTree() {
   tDone = true;
   document.getElementById('tMsg').textContent = 'Урок окончен! Мелодия из 8 нот целиком — Улитка в восторге!';
   setProgress(8, 8);
+  snailSay(pick(SNAIL_PRAISE));
   var box = document.getElementById('tEndBtns');
   box.innerHTML = '';
   var again = document.createElement('button');
@@ -957,17 +1048,20 @@ function endSheet() {
   if (sMissedNotes.length === 0) {
     if (sReturnPiece) {
       msg = 'Все ошибки исправлены! Теперь мелодию целиком?';
+      snailSay('Ошибок больше нет! Я знала, что у тебя получится.');
       addBtn('Теперь целиком', function() {
         var p = sReturnPiece; sReturnPiece = null; startSheet(p);
       });
     } else {
       msg = 'Урок окончен! Мелодия сыграна без единой ошибки — Улитка гордится тобой!';
+      snailSay(pick(SNAIL_PRAISE));
       addBtn('Ещё раз', function() { startSheet(sPiece); });
     }
   } else {
     var names = uniqNotes(sMissedNotes).map(function(n) { return ALL_NOTES[n]; }).join(', ');
     msg = 'Мелодия сыграна: ' + sScore + ' из ' + sTotal + ' нот (' + pct + '%). ';
     msg += 'Труднее всего дались: ' + names + '. Потренируем их?';
+    snailSay(pct >= 80 ? pick(SNAIL_PRAISE) : pick(SNAIL_GENTLE));
     addBtn('Потренировать ошибки', function() {
       var miss = uniqNotes(sMissedNotes);
       if (!sReturnPiece) sReturnPiece = sPiece;
@@ -981,6 +1075,9 @@ function endSheet() {
   }
   document.getElementById('sMsg').textContent = msg;
 }
+
+/* Запуск Улитки */
+snailInit();
 </script>
 </body>
 </html>
