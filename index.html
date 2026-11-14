@@ -576,6 +576,7 @@ function fillPieceSelect(sel, onChange) {
 }
 
 function startFall(piece) {
+  stopFall(); // гасим старые таймеры, если остались от прошлого урока
   if (!piece) {
     var fSel = document.getElementById('fSong');
     fillPieceSelect(fSel, function() { startFall(); });
@@ -782,6 +783,7 @@ var sPiece = null, sReturnPiece = null, sTotal = 0, sSharps = false, sPractice =
 var sMissedNotes = [];
 
 function startSheet(piece) {
+  stopSheet(); // гасим старые таймеры, если остались от прошлого урока
   if (!piece) {
     var sSel = document.getElementById('sSong');
     fillPieceSelect(sSel, function() { startSheet(); });
