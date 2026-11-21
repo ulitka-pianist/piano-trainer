@@ -16,6 +16,7 @@
   button.menu-btn { display: block; width: 100%; max-width: 340px; margin: 10px auto;
     padding: 14px; font-size: 18px; border: none; border-radius: 12px;
     background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.12); color: #333; }
+  .menu-stats { text-align: center; color: #336; font-size: 15px; margin-bottom: 6px; }
   .back { display: inline-block; margin-bottom: 10px; padding: 8px 16px;
     border: none; border-radius: 8px; background: #dbe7f5; color: #336; font-size: 15px; }
   .score { text-align: center; font-size: 17px; margin: 8px 0; color: #336; }
@@ -91,6 +92,21 @@
     0%, 100% { transform: rotate(0deg); }
     50% { transform: rotate(-4deg); }
   }
+  /* ===== Отчёт для учителя ===== */
+  .report-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,.08);
+    padding: 16px; max-width: 400px; margin: 10px auto; font-size: 15px; color: #336; }
+  .report-card h3 { margin-bottom: 10px; color: #2a5d9f; }
+  .report-card ul { margin: 8px 0 8px 20px; }
+  .report-card li { margin-bottom: 4px; }
+  .report-card b { color: #1a3a66; }
+  .report-divider { height: 1px; background: #e3ecf7; margin: 12px 0; }
+  .danger-btn { display: block; margin: 12px auto 0; padding: 10px 20px; font-size: 14px;
+    border: none; border-radius: 10px; background: #ffe0e0; color: #a33; }
+  /* ===== Блок про Нотозавра ===== */
+  .brother-card { margin: 18px auto 0; padding: 12px 14px; max-width: 340px;
+    text-align: center; background: #fff; border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.12); font-size: 14px; color: #336; }
+  .brother-card a { color: #2a5d9f; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -100,10 +116,17 @@
 </header>
 
 <div id="menu" class="screen active">
+  <p class="menu-stats">Уроков пройдено: <span id="mLessons">0</span></p>
   <button class="menu-btn" onclick="showScreen('guess')">Угадай ноту</button>
   <button class="menu-btn" onclick="showScreen('fall')">Падающие ноты</button>
   <button class="menu-btn" onclick="showScreen('tree')">Ёлочка (по нотам)</button>
   <button class="menu-btn" onclick="showScreen('sheet')">Читаем с листа</button>
+  <button class="menu-btn" onclick="showScreen('report')">📊 Отчёт для учителя</button>
+  <div class="brother-card">
+    🦖 <b>Знакомьтесь: младший брат!</b><br>
+    Его зовут <b>Нотозавр</b> — древний зверь, который <em>бесплатно</em> учит детей музыке.
+    <a href="https://ulitka-pianist.github.io/notozavr/">Познакомиться →</a>
+  </div>
 </div>
 
 <div id="guess" class="screen">
@@ -191,6 +214,12 @@
   <button class="mic-btn" data-game="sheet" onclick="toggleMic('sheet')">🎤 Сыграть на пианино</button>
 </div>
 
+<div id="report" class="screen">
+  <button class="back" onclick="showScreen('menu')">Назад в меню</button>
+  <div class="report-card" id="reportBody"></div>
+  <button class="danger-btn" onclick="resetProgress()">Сбросить статистику</button>
+</div>
+
 <div id="snailPal">
   <div id="snailBubble"></div>
   <div id="snailBody"></div>
@@ -247,6 +276,44 @@ var audioCtx = null;
 var useCamerton = true;
 var gSharps = false, fSharps = false, tSharps = false;
 
+/* ===== Прогресс: хранится в браузере (localStorage) ===== */
+var PKEY = 'snail_progress_v1';
+var PROG = { lessonsDone: 0, perGame: {}, notes: {} };
+
+function loadProgress() {
+  try {
+    var raw = localStorage.getItem(PKEY);
+    if (raw) {
+      var p = JSON.parse(raw);
+      if (p && typeof p === 'object') {
+        PROG.lessonsDone = p.lessonsDone || 0;
+        PROG.perGame = p.perGame || {};
+        PROG.notes = p.notes || {};
+      }
+    }
+  } catch (e) {}
+}
+function saveProgress() {
+  try { localStorage.setItem(PKEY, JSON.stringify(PROG)); } catch (e) {}
+}
+// ok = нота сыграна верно, иначе промах (улетела или нажали не ту)
+function bumpNote(n, ok) {
+  if (!PROG.notes[n]) PROG.notes[n] = { ok: 0, miss: 0 };
+  if (ok) PROG.notes[n].ok++; else PROG.notes[n].miss++;
+  saveProgress();
+}
+// Урок засчитывается, только если это основная пьеса, а не тренировка ошибок
+function bumpLesson(game, isPractice) {
+  if (isPractice) return;
+  PROG.lessonsDone++;
+  PROG.perGame[game] = (PROG.perGame[game] || 0) + 1;
+  saveProgress();
+  updateMenuStats();
+}
+function updateMenuStats() {
+  document.getElementById('mLessons').textContent = PROG.lessonsDone;
+}
+
 /* ===== Улитка-помощница ===== */
 var SNAIL_HI = [
   'Привет! Я Улитка, твой учитель музыки. Я никогда не тороплюсь — и тебе не нужно!',
@@ -274,7 +341,8 @@ var SNAIL_GENTLE = [
 var SNAIL_IDLE = [
   'Нажми на меня, если захочешь поболтать!',
   'Музыка не любит спешки. И я тоже.',
-  'Сегодня отличный день, чтобы выучить одну новую ноту.'
+  'Сегодня отличный день, чтобы выучить одну новую ноту.',
+  'Кстати, в меню у меня есть младший брат — Нотозавр. Он учит музыку с самых азов!'
 ];
 
 function snailSVG() {
@@ -546,10 +614,12 @@ function showScreen(id) {
   // «Ёлочка» тоже останавливается — мелодия не доигрывает в фоне
   if (tTimers.length) { tTimers.forEach(clearTimeout); tTimers = []; }
   tPlaying = false;
+  if (id === 'menu') updateMenuStats();
   if (id === 'guess') { startGuessLesson(); snailSay(SNAIL_MODE.guess); }
   if (id === 'fall') { startFall(); snailSay(SNAIL_MODE.fall); }
   if (id === 'tree') { startTree(); snailSay(SNAIL_MODE.tree); }
   if (id === 'sheet') { startSheet(); snailSay(SNAIL_MODE.sheet); }
+  if (id === 'report') { renderReport(); snailSay('Вот что мы с тобой накопили!'); }
   if (id === 'menu') snailSay(pick(SNAIL_HI));
 }
 
@@ -600,6 +670,7 @@ function answerGuess(i, fromMic) {
     if (gFirstTry) gFirst++;
     gDone++;
     gScore++;
+    bumpNote(gAnswer, true);
     document.getElementById('gFeedback').textContent = 'Верно! Это ' + ALL_NOTES[gAnswer];
     document.getElementById('gScore').textContent = gScore;
     setProgress(gDone, G_LESSON);
@@ -608,12 +679,14 @@ function answerGuess(i, fromMic) {
     setTimeout(function() { gLocked = false; newGuess(); }, 900);
   } else {
     gFirstTry = false;
+    bumpNote(i, false);
     document.getElementById('gFeedback').textContent = 'Это ' + ALL_NOTES[gAnswer] + '. Попробуй ещё раз!';
   }
 }
 
 function endGuess() {
   gLocked = true;
+  bumpLesson('guess', false);
   var pct = Math.round(gFirst / G_LESSON * 100);
   var msg = 'Урок окончен! С первой попытки: ' + gFirst + ' из ' + G_LESSON + ' (' + pct + '%). ';
   if (pct >= 80) {
@@ -718,6 +791,7 @@ function moveNotes() {
       d.remove();
       fMiss++;
       fMissedNotes.push(Number(d.getAttribute('data-note')));
+      bumpNote(Number(d.getAttribute('data-note')), false);
       document.getElementById('fMiss').textContent = fMiss;
       setProgress(fScore, fTotal);
     }
@@ -743,12 +817,15 @@ function tapKey(i, fromMic) {
     if (!fromMic) playNote(i);
     target.remove();
     fScore++;
+    bumpNote(i, true);
     document.getElementById('fScore').textContent = fScore;
     setProgress(fScore, fTotal);
   }
 }
 function endFall() {
   stopFall();
+  var isPractice = (fPiece.name === 'Тренировка ошибок');
+  bumpLesson('fall', isPractice);
   var pct = Math.round(fScore / fTotal * 100);
   var msg;
   var box = document.getElementById('fEndBtns');
@@ -838,6 +915,7 @@ function tapTree(i, fromMic) {
   flash(i);
   if (!fromMic) playNote(i);
   if (i === tSeq[tStep]) {
+    bumpNote(i, true);
     tStep++;
     if (tStep === tSeq.length) {
       document.getElementById('tMsg').textContent = 'Верно!';
@@ -848,12 +926,14 @@ function tapTree(i, fromMic) {
       tTimers.push(setTimeout(playSeq, 900));
     }
   } else {
+    bumpNote(tSeq[tStep], false);
     tStep = 0;
     document.getElementById('tMsg').textContent = 'Ничего! Нажми «Повторить» и попробуй снова';
   }
 }
 function endTree() {
   tDone = true;
+  bumpLesson('tree', false);
   document.getElementById('tMsg').textContent = 'Урок окончен! Мелодия из 8 нот целиком — Улитка в восторге!';
   setProgress(8, 8);
   snailSay(pick(SNAIL_PRAISE));
@@ -985,6 +1065,7 @@ function moveSheetNotes() {
       d.remove();
       sMiss++;
       sMissedNotes.push(Number(d.getAttribute('data-note')));
+      bumpNote(Number(d.getAttribute('data-note')), false);
       document.getElementById('sMiss').textContent = sMiss;
       setProgress(sScore, sTotal);
     }
@@ -1011,11 +1092,13 @@ function tapSheet(i, fromMic) {
     target.style.background = '#43a047';
     target.textContent = '✓';
     sScore++;
+    bumpNote(i, true);
     document.getElementById('sScore').textContent = sScore;
     setProgress(sScore, sTotal);
     setTimeout(function() { target.remove(); }, 150);
   } else if (sLearn || sPractice) {
     if (!fromMic) playNote(i);
+    bumpNote(i, false);
     if (front && front.left <= HIT_X + 36) {
       sWrongStreak++;
       if (sHintMode === 'auto' && sWrongStreak >= 2) {
@@ -1027,6 +1110,7 @@ function tapSheet(i, fromMic) {
     }
   } else {
     if (!fromMic) playNote(i);
+    bumpNote(i, false);
     sMiss++;
     document.getElementById('sMiss').textContent = sMiss;
   }
@@ -1034,6 +1118,8 @@ function tapSheet(i, fromMic) {
 function endSheet() {
   stopSheet();
   setHint(-1); sWaitEl = null; // подсказка не остаётся висеть после конца урока
+  var isPractice = (sPiece.name === 'Тренировка ошибок');
+  bumpLesson('sheet', isPractice);
   var pct = Math.round(sScore / sTotal * 100);
   var msg;
   var box = document.getElementById('sEndBtns');
@@ -1076,7 +1162,58 @@ function endSheet() {
   document.getElementById('sMsg').textContent = msg;
 }
 
-/* Запуск Улитки */
+/* ===== Отчёт для учителя ===== */
+var GAME_NAMES = { guess: 'Угадай ноту', fall: 'Падающие ноты', tree: 'Ёлочка', sheet: 'Читаем с листа' };
+
+function renderReport() {
+  var box = document.getElementById('reportBody');
+  var played = 0, missed = 0;
+  for (var k in PROG.notes) {
+    played += PROG.notes[k].ok;
+    missed += PROG.notes[k].miss;
+  }
+  var html = '<h3>📊 Отчёт для учителя</h3>';
+  html += '<p>Всего уроков пройдено: <b>' + PROG.lessonsDone + '</b></p>';
+  html += '<p>Всего нот сыграно верно: <b>' + played + '</b> · промахов: <b>' + missed + '</b></p>';
+  var games = [];
+  for (var g in PROG.perGame) games.push([GAME_NAMES[g] || g, PROG.perGame[g]]);
+  if (games.length) {
+    html += '<div class="report-divider"></div><p><b>Уроки по режимам:</b></p><ul>';
+    games.forEach(function(x) { html += '<li>' + x[0] + ' — ' + x[1] + '</li>'; });
+    html += '</ul>';
+  }
+  // Ноты, которые западают: только те, что звучали хотя бы 5 раз
+  var arr = [];
+  for (var n in PROG.notes) {
+    var d = PROG.notes[n];
+    var total = d.ok + d.miss;
+    if (total >= 5) arr.push({ note: Number(n), rate: d.miss / total, total: total });
+  }
+  arr.sort(function(a, b) { return b.rate - a.rate || b.total - a.total; });
+  html += '<div class="report-divider"></div>';
+  if (arr.length) {
+    html += '<p><b>Ноты, которые западают:</b></p><ul>';
+    arr.slice(0, 5).forEach(function(x) {
+      html += '<li>' + ALL_NOTES[x.note] + ' — ошибок ' + Math.round(x.rate * 100) + '% (сыграно ' + x.total + ' раз)</li>';
+    });
+    html += '</ul>';
+  } else {
+    html += '<p>Пока слишком мало данных, чтобы найти трудные ноты. Позанимайтесь ещё немного!</p>';
+  }
+  box.innerHTML = html;
+}
+
+function resetProgress() {
+  if (!confirm('Сбросить всю статистику? Это действие нельзя отменить.')) return;
+  PROG = { lessonsDone: 0, perGame: {}, notes: {} };
+  saveProgress();
+  updateMenuStats();
+  renderReport();
+}
+
+/* Запуск: загружаем прогресс, рисуем Улитку */
+loadProgress();
+updateMenuStats();
 snailInit();
 </script>
 </body>
